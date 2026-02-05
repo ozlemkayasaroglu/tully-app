@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Tully",
+    "slug": "tully-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8FEFB"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.ozlemkayasaroglu.tully",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Bilim deneylerini dünyanın herhangi bir yerinde yapabilirsin."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F8FEFB"
+      },
+      "package": "com.ozlemkayasaroglu.tully",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-async-storage",
+        {}
+      ],
+      [
+        "expo-av",
+        {}
+      ]
+    ],
+    "scheme": "tully",
+    "extra": {
+      "eas": {
+        "projectId": "tully-science-experiments"
+      }
+    }
+  }
+}
