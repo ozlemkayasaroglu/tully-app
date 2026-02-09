@@ -1,98 +1,314 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useWeeklyExperiment } from "@/src/hooks/useWeeklyExperiment";
+import { colors, spacing, typography } from "@/src/utils/colors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const { currentExperiment, progress, loading } = useWeeklyExperiment();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profile = await AsyncStorage.getItem("userProfile");
+        if (profile) {
+          setUserProfile(JSON.parse(profile));
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header with Welcome */}
+        <View style={styles.header}>
+          <View style={styles.welcomeBox}>
+            <Text style={styles.mascot}>🐱‍🔬</Text>
+            <View>
+              <Text style={styles.greeting}>Merhaba!</Text>
+              <Text style={styles.welcomeText}>
+                {userProfile?.nickname || "Bilim Tutkunu"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Weekly Experiment Card */}
+        {currentExperiment && (
+          <TouchableOpacity
+            style={styles.experimentCard}
+            onPress={() => {
+              // TODO: Navigate to experiment detail
+              console.log("Navigate to experiment:", currentExperiment.id);
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={styles.experimentHeader}>
+              <Text style={styles.weekBadge}>
+                Hafta {currentExperiment.weekNumber}
+              </Text>
+              <Text style={styles.difficultyBadge}>
+                {currentExperiment.difficulty === "kolay" && "🟢"}
+                {currentExperiment.difficulty === "orta" && "🟡"}
+                {currentExperiment.difficulty === "zor" && "🔴"}
+                {currentExperiment.difficulty === "uzman" && "⭐"}
+                {" " + currentExperiment.difficulty}
+              </Text>
+            </View>
+            <Text style={styles.experimentTitle}>
+              {currentExperiment.title}
+            </Text>
+            <Text style={styles.experimentDescription}>
+              {currentExperiment.description}
+            </Text>
+            <View style={styles.experimentFooter}>
+              <Text style={styles.pointsText}>
+                +{currentExperiment.points} Puan
+              </Text>
+              <Text style={styles.timeText}>
+                ⏱️ {currentExperiment.estimatedTime}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Progress Stats */}
+        <View style={styles.statsGrid}>
+          <StatCard
+            icon="🎯"
+            title={progress.totalExperimentsCompleted.toString()}
+            label="Deney Tamamlandı"
+          />
+          <StatCard
+            icon="⭐"
+            title={progress.totalPoints.toString()}
+            label="Toplam Puan"
+          />
+          <StatCard
+            icon="🔥"
+            title={progress.streak.toString()}
+            label="Günlük Seri"
+          />
+          <StatCard
+            icon="🏆"
+            title={progress.badges.length.toString()}
+            label="Rozetler"
+          />
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Hızlı Erişim</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push("/explore")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.actionIcon}>🧪</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Tüm Deneyler</Text>
+              <Text style={styles.actionDescription}>
+                Diğer deneyler kütüphanesine bak
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              // TODO: Navigate to progress
+              console.log("Navigate to progress");
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.actionIcon}>📊</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>İlerleme</Text>
+              <Text style={styles.actionDescription}>
+                Başarılarını ve rozetlerini gör
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Footer Spacing */}
+        <View style={styles.spacer} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+interface StatCardProps {
+  icon: string;
+  title: string;
+  label: string;
+}
+
+function StatCard({ icon, title, label }: StatCardProps) {
+  return (
+    <View style={styles.statCard}>
+      <Text style={styles.statIcon}>{icon}</Text>
+      <Text style={styles.statTitle}>{title}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    padding: spacing[4],
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  welcomeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mascot: {
+    fontSize: 48,
+    marginRight: spacing[3],
+  },
+  greeting: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.light,
+  },
+  welcomeText: {
+    fontSize: typography.sizes.xl,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  experimentCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: spacing[4],
+    marginHorizontal: spacing[4],
+    marginBottom: spacing[4],
+  },
+  experimentHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing[2],
+  },
+  weekBadge: {
+    backgroundColor: colors.primary + "20",
+    color: colors.primary,
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: 8,
+    fontSize: typography.sizes.xs,
+    fontWeight: "600",
+    overflow: "hidden",
+  },
+  difficultyBadge: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "600",
+  },
+  experimentTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: colors.text.dark,
+    marginBottom: spacing[2],
+  },
+  experimentDescription: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.medium,
+    lineHeight: 20,
+    marginBottom: spacing[3],
+  },
+  experimentFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  pointsText: {
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  timeText: {
+    color: colors.text.light,
+    fontSize: typography.sizes.sm,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: spacing[2],
+    marginBottom: spacing[6],
+    gap: spacing[2],
+  },
+  statCard: {
+    width: "48%",
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing[3],
+    alignItems: "center",
+  },
+  statIcon: {
+    fontSize: 32,
+    marginBottom: spacing[1],
+  },
+  statTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: colors.text.dark,
+  },
+  statLabel: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.light,
+    marginTop: spacing[1],
+    textAlign: "center",
+  },
+  section: {
+    paddingHorizontal: spacing[4],
+    marginBottom: spacing[6],
+  },
+  sectionTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: colors.text.dark,
+    marginBottom: spacing[3],
+  },
+  actionButton: {
+    flexDirection: "row",
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: spacing[3],
+    marginBottom: spacing[2],
+    alignItems: "center",
+  },
+  actionIcon: {
+    fontSize: 32,
+    marginRight: spacing[3],
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: "600",
+    color: colors.text.dark,
+  },
+  actionDescription: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.light,
+    marginTop: spacing[1],
+  },
+  spacer: {
+    height: spacing[6],
   },
 });
