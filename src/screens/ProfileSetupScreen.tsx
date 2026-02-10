@@ -4,10 +4,11 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  SafeAreaView,
+  Animated,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { colors, spacing, typography } from "../utils/colors";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors, spacing } from "../utils/colors";
 
 interface ProfileSetupScreenProps {
   navigation: any;
@@ -31,10 +33,10 @@ const AVATARS = [
 ];
 
 const AGE_GROUPS = [
-  { id: "4-5", label: "4-5 yaş", emoji: "🫘", description: "Tohum" },
-  { id: "6-7", label: "6-7 yaş", emoji: "🌱", description: "Filiz" },
-  { id: "8-9", label: "8-9 yaş", emoji: "🌿", description: "Yaprak" },
-  { id: "10-12", label: "10-12 yaş", emoji: "🌳", description: "Ağaç" },
+  { id: "4-5", label: "4-5 yaş", emoji: "🌱" },
+  { id: "6-7", label: "6-7 yaş", emoji: "🌿" },
+  { id: "8-9", label: "8-9 yaş", emoji: "🌳" },
+  { id: "10-12", label: "10-12 yaş", emoji: "🌲" },
 ];
 
 const getDefaultNickname = (ageId: string) => {
@@ -60,6 +62,41 @@ export default function ProfileSetupScreen({
   const [selectedAge, setSelectedAge] = useState("8-9");
   const [loading, setLoading] = useState(false);
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const tullyBounce = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Tully subtle bounce
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(tullyBounce, {
+          toValue: -8,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(tullyBounce, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
+
   const handleContinue = async () => {
     setLoading(true);
     try {
@@ -75,11 +112,8 @@ export default function ProfileSetupScreen({
 
       await AsyncStorage.setItem("userProfile", JSON.stringify(profile));
 
-      // Navigate to MainTabs
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "MainTabs" }],
-      });
+      // Navigate to tabs which will show HomeScreen
+      navigation.replace("/(tabs)");
     } catch (error) {
       Alert.alert("Hata", "Profil kaydedilirken hata oluştu!");
       console.error("Error saving profile:", error);
@@ -98,36 +132,43 @@ export default function ProfileSetupScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Preview Section */}
-        <View style={styles.previewSection}>
-          <View style={styles.previewCard}>
-            <Text style={styles.previewAvatar}>{avatarEmoji}</Text>
-            <Text style={styles.previewNickname}>{displayNickname}</Text>
-            <View style={styles.previewAgeContainer}>
-              <Text style={styles.previewAgeEmoji}>
-                {selectedAgeGroup?.emoji}
-              </Text>
-              <Text style={styles.previewAgeText}>
-                {selectedAgeGroup?.label}
-              </Text>
-            </View>
+        {/* Tully Header */}
+        <Animated.View
+          style={[
+            styles.tullyHeader,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: tullyBounce }],
+            },
+          ]}
+        >
+          <Image
+            source={require("../../assets/images/tully.png")}
+            style={styles.tullyImage}
+            resizeMode="contain"
+          />
+          <View style={styles.speechBubble}>
+            <Text style={styles.speechText}>Hadi seni tanıyalım! 🎉</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Form Section */}
-        <View style={styles.formSection}>
-          <Text style={styles.title}>Profilini Oluştur</Text>
-          <Text style={styles.subtitle}>
-            Sana özel deneyleri hazırlayabilmemiz için birkaç adım yeterli.
-          </Text>
-
+        <Animated.View
+          style={[
+            styles.formSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
           {/* Nickname Input */}
           <View style={styles.inputSection}>
-            <Text style={styles.label}>Takma Ad</Text>
+            <Text style={styles.label}>Takma Adın ne?</Text>
             <TextInput
               style={styles.input}
-              placeholder="Takma adını yaz (opsiyonel)"
-              placeholderTextColor={colors.text.lighter}
+              placeholder="Adını yaz"
+              placeholderTextColor="#9CA3AF"
               value={nickname}
               onChangeText={setNickname}
               maxLength={20}
@@ -139,7 +180,7 @@ export default function ProfileSetupScreen({
 
           {/* Avatar Selection */}
           <View style={styles.inputSection}>
-            <Text style={styles.label}>Avatar Seç</Text>
+            <Text style={styles.label}>Avatarını Seç</Text>
             <View style={styles.avatarGrid}>
               {AVATARS.map((avatar) => (
                 <TouchableOpacity
@@ -149,8 +190,14 @@ export default function ProfileSetupScreen({
                     selectedAvatar === avatar.id && styles.avatarButtonSelected,
                   ]}
                   onPress={() => setSelectedAvatar(avatar.id)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
+                  {selectedAvatar === avatar.id && (
+                    <View style={styles.selectedBadge}>
+                      <Text style={styles.selectedBadgeText}>✓</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -158,7 +205,7 @@ export default function ProfileSetupScreen({
 
           {/* Age Group Selection */}
           <View style={styles.inputSection}>
-            <Text style={styles.label}>Yaş Grubu</Text>
+            <Text style={styles.label}>Kaç Yaşındasın?</Text>
             <View style={styles.ageGrid}>
               {AGE_GROUPS.map((age) => (
                 <TouchableOpacity
@@ -168,6 +215,7 @@ export default function ProfileSetupScreen({
                     selectedAge === age.id && styles.ageCardSelected,
                   ]}
                   onPress={() => setSelectedAge(age.id)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.ageEmoji}>{age.emoji}</Text>
                   <Text style={styles.ageLabel}>{age.label}</Text>
@@ -175,20 +223,22 @@ export default function ProfileSetupScreen({
               ))}
             </View>
           </View>
-
-          {/* Continue Button */}
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleContinue}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? "Kaydediliyor..." : "Deneylere Başla 🚀"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </Animated.View>
       </ScrollView>
+
+      {/* Bottom Fixed Button */}
+      <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleContinue}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Kaydediliyor..." : "Deneylere Başla! 🚀"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -196,109 +246,120 @@ export default function ProfileSetupScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: "#FFFBF5",
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: spacing[4],
   },
-  previewSection: {
-    backgroundColor: "#E0F7F1",
-    paddingVertical: spacing[8],
-    paddingHorizontal: spacing[4],
+  tullyHeader: {
     alignItems: "center",
+    paddingTop: spacing[4],
+    paddingHorizontal: spacing[5],
+    marginBottom: spacing[6],
   },
-  previewCard: {
-    alignItems: "center",
-  },
-  previewAvatar: {
-    fontSize: 80,
+  tullyImage: {
+    width: 120,
+    height: 120,
     marginBottom: spacing[3],
   },
-  previewNickname: {
-    fontSize: typography.sizes["2xl"],
-    fontWeight: "700",
-    color: colors.text.dark,
-    marginBottom: spacing[2],
+  speechBubble: {
+    backgroundColor: "#FFE4EC",
+    borderRadius: 20,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
+    borderWidth: 3,
+    borderColor: "#FF6B9D",
+    shadowColor: "#FF6B9D",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  previewAgeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing[2],
-  },
-  previewAgeEmoji: {
-    fontSize: 24,
-  },
-  previewAgeText: {
-    fontSize: typography.sizes.base,
-    color: colors.text.medium,
-    fontWeight: "600",
+  speechText: {
+    fontSize: 18,
+    fontFamily: "NunitoBold",
+    color: "#FF6B9D",
+    textAlign: "center",
   },
   formSection: {
-    padding: spacing[6],
-  },
-  title: {
-    fontSize: typography.sizes["3xl"],
-    fontWeight: "700",
-    color: colors.text.dark,
-    marginBottom: spacing[2],
-  },
-  subtitle: {
-    fontSize: typography.sizes.base,
-    color: colors.text.medium,
-    marginBottom: spacing[6],
-    lineHeight: 22,
+    paddingHorizontal: spacing[5],
   },
   inputSection: {
-    marginBottom: spacing[6],
+    marginBottom: spacing[5],
   },
   label: {
-    fontSize: typography.sizes.lg,
-    fontWeight: "600",
-    color: colors.text.dark,
+    fontSize: 18,
+    fontFamily: "NunitoBold",
+    color: "#2D3748",
     marginBottom: spacing[3],
   },
   input: {
     backgroundColor: colors.white,
     borderRadius: 16,
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    fontSize: typography.sizes.base,
+    paddingVertical: spacing[4],
+    fontSize: 16,
+    fontFamily: "Nunito",
     borderWidth: 2,
-    borderColor: colors.gray[200],
-    color: colors.text.dark,
+    borderColor: "#E5E7EB",
+    color: "#2D3748",
   },
   characterCount: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.lighter,
+    fontSize: 12,
+    fontFamily: "Nunito",
+    color: "#9CA3AF",
     marginTop: spacing[1],
     textAlign: "right",
   },
   avatarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing[1],
+    gap: spacing[2],
   },
   avatarButton: {
-    width: "15%",
-    aspectRatio: 1,
+    width: 55,
+    height: 55,
     borderRadius: 16,
     backgroundColor: colors.white,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: colors.gray[200],
+    borderWidth: 3,
+    borderColor: "#E5E7EB",
+    position: "relative",
   },
   avatarButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + "10",
+    borderColor: "#FF6B9D",
+    backgroundColor: "#FFE4EC",
   },
   avatarEmoji: {
-    fontSize: 32,
+    fontSize: 25,
+  },
+  selectedBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#FF6B9D",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  selectedBadgeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontFamily: "NunitoBold",
   },
   ageGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing[3],
+    gap: spacing[2],
   },
   ageCard: {
     width: "48%",
@@ -306,43 +367,53 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: spacing[4],
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: colors.gray[200],
+    borderWidth: 3,
+    borderColor: "#E5E7EB",
   },
   ageCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + "10",
+    borderColor: "#4ECDC4",
+    backgroundColor: "#D4F1F4",
   },
   ageEmoji: {
-    fontSize: 40,
+    fontSize: 25,
     marginBottom: spacing[2],
   },
   ageLabel: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.dark,
-    fontWeight: "600",
+    fontSize: 15,
+    fontFamily: "NunitoBold",
+    color: "#2D3748",
+    marginBottom: spacing[1],
+  },
+  bottomButtonContainer: {
+    backgroundColor: "#FFFBF5",
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
   },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 24,
+    backgroundColor: "#FF6B9D",
+    borderRadius: 50,
     paddingVertical: spacing[4],
     alignItems: "center",
-    marginTop: spacing[4],
-    shadowColor: colors.primary,
+    shadowColor: "#FF6B9D",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 4,
+    borderColor: colors.white,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
     color: colors.white,
-    fontSize: typography.sizes.lg,
-    fontWeight: "700",
+    fontSize: 18,
+    fontFamily: "NunitoBold",
+    letterSpacing: 0.5,
   },
 });

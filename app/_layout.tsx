@@ -58,6 +58,8 @@ export default function RootLayout() {
     if (!isReady || !fontsLoaded) return;
 
     const inAuthGroup = segments[0] === "(tabs)";
+    const inOnboarding = segments[0] === "onboarding";
+    const inProfileSetup = segments[0] === "profile-setup";
 
     if (!hasProfile && inAuthGroup) {
       // User doesn't have profile, redirect to onboarding
@@ -65,6 +67,8 @@ export default function RootLayout() {
     } else if (
       hasProfile &&
       !inAuthGroup &&
+      !inOnboarding &&
+      !inProfileSetup &&
       segments[0] !== "modal" &&
       segments[0] !== "experiment"
     ) {

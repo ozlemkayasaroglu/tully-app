@@ -1,11 +1,11 @@
-import ProfileSetupScreen from "@/src/screens/ProfileSetupScreen";
+import HomeScreen from "@/src/screens/HomeScreen";
 import { useRouter } from "expo-router";
 
-export default function ProfileSetupRoute() {
+export default function HomeScreenRoute() {
   const router = useRouter();
 
   return (
-    <ProfileSetupScreen
+    <HomeScreen
       navigation={{
         replace: (route: string) => {
           router.replace(route);

@@ -4,13 +4,13 @@ import {
   Animated,
   Dimensions,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, spacing } from "../utils/colors";
 
 const { width, height } = Dimensions.get("window");
@@ -89,7 +89,6 @@ export default function OnboardingFeaturesScreen({
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-          {/* Tully Section */}
           <Animated.View
             style={[
               styles.tullySection,
@@ -104,7 +103,6 @@ export default function OnboardingFeaturesScreen({
             <Text style={styles.welcomeText}>Benimle neler yapacağız? 🎉</Text>
           </Animated.View>
 
-          {/* Feature Cards */}
           <View style={styles.cardsContainer}>
             {features.map((feature, index) => (
               <Animated.View
@@ -150,7 +148,6 @@ export default function OnboardingFeaturesScreen({
           </View>
         </Animated.View>
 
-        {/* Bottom CTA */}
         <View style={styles.bottomSection}>
           <TouchableOpacity
             style={styles.ctaButton}
