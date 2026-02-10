@@ -1,19 +1,16 @@
-/**
- * OnboardingScreen
- * Welcome page introducing Tully app
- */
-
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
+  Animated,
+  Dimensions,
   Image,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { colors, spacing, typography } from "../utils/colors";
+const { width, height } = Dimensions.get("window");
 
 interface OnboardingScreenProps {
   navigation: any;
@@ -22,161 +19,351 @@ interface OnboardingScreenProps {
 export default function OnboardingScreen({
   navigation,
 }: OnboardingScreenProps) {
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  const starAnims = useRef(
+    Array(15)
+      .fill(null)
+      .map(() => new Animated.Value(0.5)),
+  ).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(rotateAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rotateAnim, {
+            toValue: 0,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    ]).start();
+
+    starAnims.forEach((anim, index) => {
+      const delay = index * 150;
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 800 + Math.random() * 400,
+            delay: delay,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.5,
+            duration: 800 + Math.random() * 400,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    });
+  }, []);
+
+  const spin = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const starPositions = [
+    { left: width * 0.05, top: height * 0.05, size: 20 },
+    { left: width * 0.15, top: height * 0.15, size: 16 },
+    { left: width * 0.85, top: height * 0.08, size: 24 },
+    { left: width * 0.75, top: height * 0.2, size: 18 },
+    { left: width * 0.1, top: height * 0.35, size: 22 },
+    { left: width * 0.9, top: height * 0.4, size: 14 },
+    { left: width * 0.25, top: height * 0.5, size: 20 },
+    { left: width * 0.7, top: height * 0.55, size: 16 },
+    { left: width * 0.05, top: height * 0.65, size: 18 },
+    { left: width * 0.95, top: height * 0.7, size: 20 },
+    { left: width * 0.4, top: height * 0.75, size: 14 },
+    { left: width * 0.6, top: height * 0.8, size: 22 },
+    { left: width * 0.2, top: height * 0.9, size: 16 },
+    { left: width * 0.8, top: height * 0.85, size: 20 },
+    { left: width * 0.5, top: height * 0.95, size: 18 },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header with Logo */}
-        <View style={styles.header}>
-          <Text style={styles.mascot}>🐱‍🔬</Text>
-          <Text style={styles.title}>Tully</Text>
-          <Text style={styles.subtitle}>Science Experiments for Young Minds</Text>
+        <View style={styles.starsContainer}>
+          {starPositions.map((pos, i) => (
+            <Animated.Text
+              key={i}
+              style={[
+                styles.floatingStar,
+                {
+                  left: pos.left,
+                  top: pos.top,
+                  fontSize: pos.size,
+                  opacity: starAnims[i],
+                  transform: [
+                    {
+                      scale: starAnims[i].interpolate({
+                        inputRange: [0.5, 1],
+                        outputRange: [0.8, 1.2],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {i % 3 === 0 ? "✨" : i % 3 === 1 ? "⭐" : "🌟"}
+            </Animated.Text>
+          ))}
         </View>
 
-        {/* Description */}
-        <View style={styles.descriptionBox}>
-          <Text style={styles.descriptionText}>
-            Merhaba! Benim adım Tully ve ben bir bilimci kedisiyim. Seninle
-            birlikte heyecan verici deneyler yapacağız ve harika şeyler
-            öğreneceğiz! 🔬✨
-          </Text>
+        <View style={styles.centerContent}>
+          <Animated.View
+            style={[
+              styles.characterSection,
+              {
+                transform: [{ translateY: floatAnim }, { scale: scaleAnim }],
+              },
+            ]}
+          >
+            <View style={styles.characterCircle} />
+
+            <Animated.View
+              style={[styles.sparkleOrbit, { transform: [{ rotate: spin }] }]}
+            >
+              <Text style={styles.orbitSparkle}>⭐</Text>
+            </Animated.View>
+
+            <Image
+              source={require("../../assets/images/tully.png")}
+              style={styles.tullyImage}
+              resizeMode="contain"
+            />
+
+            <Animated.View
+              style={[
+                styles.speechBubble,
+                {
+                  transform: [{ translateX: slideAnim }],
+                },
+              ]}
+            >
+              <View style={styles.speechBubbleInner}>
+                <Text style={styles.speechEmoji}>👋</Text>
+                <Text style={styles.speechBubbleText}>
+                  Merhaba! Ben
+                  <Text style={styles.highlightText}> Tully!</Text>
+                  {"\n"} Benimle oynamaya ve öğrenmeye hazır mısın?
+                </Text>
+              </View>
+              <View style={styles.speechBubbleTail} />
+            </Animated.View>
+          </Animated.View>
         </View>
 
-        {/* Features */}
-        <View style={styles.featuresBox}>
-          <FeatureItem icon="🧪" title="52 Hafta Deney" 
-            description="Her hafta yeni bir deney keşfet" />
-          <FeatureItem icon="🏆" title="Rozetler Kazan"
-            description="Başarılarını rozetlerle ödüllendir" />
-          <FeatureItem icon="⭐" title="Puan Topla"
-            description="Her deneyin puanını biriktir" />
-          <FeatureItem icon="🎓" title="Öğren ve Keşfet"
-            description="Bilimi eğlenceli bir şekilde öğren" />
+        <View style={styles.pageIndicator}>
+          <View style={[styles.dot, styles.dotActive]} />
+          <View style={styles.dot} />
         </View>
 
-        {/* Call to Action */}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate("ProfileSetup")}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.buttonText}>Deneylere Başla 🚀</Text>
-        </TouchableOpacity>
-
-        {/* Footer */}
-        <Text style={styles.footer}>
-          Made with ❤️ for young scientists
-        </Text>
+        <View style={styles.swipeHint}>
+          <Text style={styles.swipeHintText}>Yukarı kaydır</Text>
+          <Text style={styles.swipeHintEmoji}>👆</Text>
+        </View>
       </ScrollView>
-    </SafeAreaView>
-  );
-}
 
-interface FeatureItemProps {
-  icon: string;
-  title: string;
-  description: string;
-}
-
-function FeatureItem({ icon, title, description }: FeatureItemProps) {
-  return (
-    <View style={styles.featureItem}>
-      <Text style={styles.featureIcon}>{icon}</Text>
-      <View style={styles.featureContent}>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDescription}>{description}</Text>
+      <View style={styles.footerContainer}>
+        <Text style={styles.footer}>For my little unicorn</Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: "#F0F9FF",
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing[4],
-    paddingVertical: spacing[6],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[24],
   },
-  header: {
+  starsContainer: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    top: 0,
+    left: 0,
+    zIndex: 0,
+  },
+  floatingStar: {
+    position: "absolute",
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    marginVertical: spacing[6],
+    minHeight: height * 0.55,
+    zIndex: 1,
   },
-  mascot: {
-    fontSize: 80,
+  characterSection: {
+    alignItems: "center",
+    position: "relative",
+  },
+  characterCircle: {
+    position: "absolute",
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(255, 182, 193, 0.3)",
+    top: -20,
+  },
+  sparkleOrbit: {
+    position: "absolute",
+    width: 240,
+    height: 240,
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+  },
+  orbitSparkle: {
+    fontSize: 28,
+    marginTop: -10,
+  },
+  tullyImage: {
+    width: 220,
+    height: 220,
+    zIndex: 2,
+  },
+  speechBubble: {
+    backgroundColor: colors.white,
+    borderRadius: 25,
+    padding: spacing[4],
+    marginHorizontal: spacing[4],
+    marginTop: -spacing[2],
+    position: "relative",
+    shadowColor: "#FF6B9D",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 3,
+    borderColor: "#FFE4EC",
+    zIndex: 3,
+  },
+  speechBubbleInner: {
+    alignItems: "center",
+  },
+  speechEmoji: {
+    fontSize: 32,
     marginBottom: spacing[2],
   },
-  title: {
-    fontSize: typography.sizes["4xl"],
-    fontWeight: "700",
-    color: colors.primary,
-    marginBottom: spacing[1],
-  },
-  subtitle: {
-    fontSize: typography.sizes.base,
-    color: colors.text.medium,
-    textAlign: "center",
-  },
-  descriptionBox: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    padding: spacing[4],
-    marginVertical: spacing[6],
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-  },
-  descriptionText: {
-    fontSize: typography.sizes.base,
-    color: colors.text.medium,
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  featuresBox: {
-    marginVertical: spacing[6],
-  },
-  featureItem: {
-    flexDirection: "row",
-    marginBottom: spacing[4],
-    alignItems: "flex-start",
-  },
-  featureIcon: {
-    fontSize: 32,
-    marginRight: spacing[3],
-  },
-  featureContent: {
-    flex: 1,
-  },
-  featureTitle: {
+  speechBubbleText: {
     fontSize: typography.sizes.lg,
-    fontWeight: "600",
     color: colors.text.dark,
-    marginBottom: spacing[1],
+    textAlign: "center",
+    lineHeight: 28,
+    fontFamily: "NunitoBold",
   },
-  featureDescription: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.light,
-    lineHeight: 20,
+  highlightText: {
+    color: "#FF6B9D",
+    fontSize: typography.sizes.xl,
+    fontFamily: "NunitoBold",
   },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: spacing[4],
-    paddingHorizontal: spacing[6],
-    marginVertical: spacing[6],
+  speechBubbleTail: {
+    position: "absolute",
+    top: -15,
+    left: "50%",
+    marginLeft: -15,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 15,
+    borderRightWidth: 15,
+    borderBottomWidth: 15,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: colors.white,
+  },
+  pageIndicator: {
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
+    marginTop: spacing[8],
+    gap: 12,
+    zIndex: 1,
   },
-  buttonText: {
-    color: colors.white,
-    fontSize: typography.sizes.lg,
-    fontWeight: "700",
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#D1D5DB",
+  },
+  dotActive: {
+    backgroundColor: "#FF6B9D",
+    width: 32,
+    height: 12,
+    borderRadius: 6,
+  },
+  swipeHint: {
+    alignItems: "center",
+    marginTop: spacing[4],
+    opacity: 0.6,
+    zIndex: 1,
+  },
+  swipeHintText: {
+    fontSize: typography.sizes.sm,
+    color: "#9CA3AF",
+    fontWeight: "600",
+    marginBottom: spacing[1],
+    fontFamily: typography.fontFamily.regular,
+  },
+  swipeHintEmoji: {
+    fontSize: 24,
+  },
+  footerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing[4],
+    backgroundColor: "#F0F9FF",
+    position: "absolute",
+    bottom: 18,
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
   footer: {
-    textAlign: "center",
-    color: colors.text.lighter,
+    color: "rgba(186, 139, 161, 0.47)",
     fontSize: typography.sizes.sm,
-    marginVertical: spacing[4],
+    fontWeight: "600",
+    marginHorizontal: spacing[2],
+    fontStyle: "italic",
+    fontFamily: "NunitoBold",
+  },
+  footerEmoji: {
+    fontSize: 20,
   },
 });

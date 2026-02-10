@@ -3,26 +3,72 @@
  * Main home page with weekly experiment and achievements
  */
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { colors, spacing, typography } from "../utils/colors";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
+import { colors, spacing, typography } from "../utils/colors";
 
 interface HomeScreenProps {
   navigation: any;
 }
 
+const avatarEmojiMap: Record<string, string> = {
+  unicorn: "🦄",
+  butterfly: "🦋",
+  ladybug: "🐞",
+  bunny: "🐰",
+  cat: "🐱",
+  dog: "🐶",
+};
+
+const scientists = [
+  {
+    name: "El-Cezeri",
+    quote:
+      "Mekanik sanatlar, teorik bilgiden daha üstündür çünkü somut eserler ortaya koyar.",
+    info: "Sibernetiğin kurucusu, 50'den fazla makine tasarladı",
+  },
+  {
+    name: "Ada Lovelace",
+    quote:
+      "Analitik Motor, yalnızca sayıları değil, sembolleri de işleyebilir.",
+    info: "Dünyanın ilk bilgisayar programcısı",
+  },
+  {
+    name: "İbn-i Sina",
+    quote: "Bilim, insanı şüpheden yakîne, cehaletten bilgiye götüren yoldur.",
+    info: "Tıp Kanunu kitabı 600 yıl boyunca Avrupa'da ders kitabı olarak okutuldu",
+  },
+  {
+    name: "Marie Curie",
+    quote:
+      "Hayatta korkulacak hiçbir şey yok, sadece anlaşılması gereken şeyler var.",
+    info: "İki farklı bilim dalında Nobel Ödülü kazanan ilk kişi",
+  },
+];
+
+type Achievement = {
+  id: string;
+  icon: string;
+  name: string;
+  desc: string;
+  unlocked: boolean;
+};
+
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [userProfile, setUserProfile] = useState<any>(null);
   const { currentExperiment, progress, loading } = useWeeklyExperiment();
+  const [scientistOfTheDay] = useState(
+    scientists[Math.floor(Math.random() * scientists.length)],
+  );
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -39,138 +85,210 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     loadProfile();
   }, []);
 
+  const achievements: Achievement[] = [
+    {
+      id: "a1",
+      icon: "🏅",
+      name: "İlk Deney",
+      desc: "İlk deneyi tamamla",
+      unlocked: progress.totalExperimentsCompleted > 0,
+    },
+    {
+      id: "a2",
+      icon: "🔬",
+      name: "Meraklı",
+      desc: "3 deneyi tamamla",
+      unlocked: progress.totalExperimentsCompleted >= 3,
+    },
+    {
+      id: "a3",
+      icon: "🌟",
+      name: "Hafta Şampiyonu",
+      desc: "7 gün üst üste deney yap",
+      unlocked: progress.streak >= 7,
+    },
+    {
+      id: "a4",
+      icon: "🚀",
+      name: "Keşif",
+      desc: "5 deneyi tamamla",
+      unlocked: progress.totalExperimentsCompleted >= 5,
+    },
+    {
+      id: "a5",
+      icon: "📚",
+      name: "Bilge",
+      desc: "10 deneyi tamamla",
+      unlocked: progress.totalExperimentsCompleted >= 10,
+    },
+    {
+      id: "a6",
+      icon: "🎉",
+      name: "Tamamlayıcı",
+      desc: "Tüm haftaları tamamla",
+      unlocked: progress.currentWeek >= 12,
+    },
+  ];
+
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  const avatarEmoji =
+    userProfile?.avatar || avatarEmojiMap[userProfile?.avatar] || "🔬";
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header with Welcome */}
-        <View style={styles.header}>
-          <View style={styles.welcomeBox}>
-            <Text style={styles.mascot}>🐱‍🔬</Text>
-            <View>
-              <Text style={styles.greeting}>Merhaba!</Text>
-              <Text style={styles.welcomeText}>
-                {userProfile?.nickname || "Bilim Tutkunu"}
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroCard}>
+            <Text style={styles.heroAvatar}>{avatarEmoji}</Text>
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>
+                Merhaba {userProfile?.nickname || "Bilim Kaşifi"} 👋
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Bugün keşfetmeye hazır mısın?
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Weekly Experiment Card */}
-        {currentExperiment && (
-          <TouchableOpacity
-            style={styles.experimentCard}
-            onPress={() =>
-              navigation.navigate("ExperimentDetail", {
-                experimentId: currentExperiment.id,
-              })
-            }
-            activeOpacity={0.8}
-          >
-            <View style={styles.experimentHeader}>
-              <Text style={styles.weekBadge}>
-                Hafta {currentExperiment.weekNumber}
-              </Text>
-              <Text style={styles.difficultyBadge}>
-                {currentExperiment.difficulty === "kolay" && "��"}
-                {currentExperiment.difficulty === "orta" && "🟡"}
-                {currentExperiment.difficulty === "zor" && "🔴"}
-                {currentExperiment.difficulty === "uzman" && "⭐"}
-                {" " + currentExperiment.difficulty}
-              </Text>
-            </View>
-            <Text style={styles.experimentTitle}>
-              {currentExperiment.title}
-            </Text>
-            <Text style={styles.experimentDescription}>
-              {currentExperiment.description}
-            </Text>
-            <View style={styles.experimentFooter}>
-              <Text style={styles.pointsText}>
-                +{currentExperiment.points} Puan
-              </Text>
-              <Text style={styles.timeText}>
-                ⏱️ {currentExperiment.estimatedTime}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Progress Stats */}
-        <View style={styles.statsGrid}>
-          <StatCard
-            icon="🎯"
-            title={progress.totalExperimentsCompleted.toString()}
-            label="Deney Tamamlandı"
-          />
-          <StatCard
-            icon="⭐"
-            title={progress.totalPoints.toString()}
-            label="Toplam Puan"
-          />
-          <StatCard
-            icon="🔥"
-            title={progress.streak.toString()}
-            label="Günlük Seri"
-          />
-          <StatCard
-            icon="🏆"
-            title={progress.badges.length.toString()}
-            label="Rozetler"
-          />
-        </View>
-
-        {/* Quick Actions */}
+        {/* Current Experiment */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hızlı Erişim</Text>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("Experiments")}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionIcon}>🧪</Text>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Tüm Deneyler</Text>
-              <Text style={styles.actionDescription}>
-                Diğer deneyler kütüphanesine bak
-              </Text>
+          {loading ? (
+            <View style={styles.loadingCard}>
+              <Text style={styles.loadingEmoji}>🧪</Text>
+              <Text style={styles.loadingText}>Hazırlanıyor...</Text>
             </View>
-          </TouchableOpacity>
+          ) : currentExperiment ? (
+            <View style={styles.experimentCard}>
+              <View style={styles.experimentHeader}>
+                <View style={styles.weekBadge}>
+                  <Text style={styles.weekBadgeText}>
+                    Hafta {currentExperiment.weekNumber}
+                  </Text>
+                </View>
+                <View style={styles.difficultyBadge}>
+                  <Text style={styles.difficultyBadgeText}>
+                    {currentExperiment.difficulty}
+                  </Text>
+                </View>
+              </View>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate("Progress")}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.actionIcon}>📊</Text>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>İlerleme</Text>
-              <Text style={styles.actionDescription}>
-                Başarılarını ve rozetlerini gör
+              <Text style={styles.experimentTitle}>
+                {currentExperiment.title}
+              </Text>
+              <Text style={styles.experimentDescription}>
+                {currentExperiment.description}
+              </Text>
+
+              <View style={styles.experimentMeta}>
+                <Text style={styles.metaText}>
+                  ⏱️ {currentExperiment.estimatedTime}
+                </Text>
+                <Text style={styles.metaText}>
+                  ⭐ +{currentExperiment.points} XP
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.startButton}
+                onPress={() =>
+                  navigation.navigate("ExperimentDetail", {
+                    experimentId: currentExperiment.id,
+                  })
+                }
+                activeOpacity={0.8}
+              >
+                <Text style={styles.startButtonText}>Deneye Başla 🚀</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.completedCard}>
+              <Text style={styles.completedEmoji}>🎉</Text>
+              <Text style={styles.completedText}>
+                Tüm deneyleri tamamladın!
               </Text>
             </View>
-          </TouchableOpacity>
+          )}
         </View>
 
-        {/* Footer Spacing */}
+        {/* Achievements */}
+        <View style={styles.section}>
+          <View style={styles.achievementsCard}>
+            <Text style={styles.achievementsTitle}>
+              🏆 Başarılar ({unlockedCount}/{achievements.length})
+            </Text>
+            <View style={styles.achievementsGrid}>
+              {achievements.map((achievement) => (
+                <View
+                  key={achievement.id}
+                  style={[
+                    styles.achievementItem,
+                    achievement.unlocked && styles.achievementUnlocked,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.achievementIconContainer,
+                      achievement.unlocked &&
+                        styles.achievementIconContainerUnlocked,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.achievementIcon,
+                        !achievement.unlocked && styles.achievementIconLocked,
+                      ]}
+                    >
+                      {achievement.icon}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.achievementName,
+                      !achievement.unlocked && styles.achievementNameLocked,
+                    ]}
+                  >
+                    {achievement.name}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.achievementDesc,
+                      !achievement.unlocked && styles.achievementDescLocked,
+                    ]}
+                  >
+                    {achievement.desc}
+                  </Text>
+                  {achievement.unlocked && (
+                    <View style={styles.unlockedBadge}>
+                      <Text style={styles.unlockedBadgeText}>✓ Kazanıldı</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Scientist of the Day */}
+        <View style={styles.section}>
+          <View style={styles.scientistCard}>
+            <Text style={styles.scientistTitle}>
+              Diğer Meraklı Çocuklar Büyüdü ve Neler Yaptı?
+            </Text>
+            <Text style={styles.scientistName}>{scientistOfTheDay.name}</Text>
+            <View style={styles.scientistQuoteBox}>
+              <Text style={styles.scientistQuote}>
+                "{scientistOfTheDay.quote}"
+              </Text>
+              <Text style={styles.scientistInfo}>{scientistOfTheDay.info}</Text>
+            </View>
+          </View>
+        </View>
+
         <View style={styles.spacer} />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-interface StatCardProps {
-  icon: string;
-  title: string;
-  label: string;
-}
-
-function StatCard({ icon, title, label }: StatCardProps) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statIcon}>{icon}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -179,54 +297,93 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
+  heroSection: {
     padding: spacing[4],
+    paddingTop: spacing[6],
   },
-  welcomeBox: {
+  heroCard: {
+    backgroundColor: "#E0F7F1",
+    borderRadius: 24,
+    padding: spacing[5],
     flexDirection: "row",
     alignItems: "center",
+    gap: spacing[4],
   },
-  mascot: {
+  heroAvatar: {
+    fontSize: 64,
+  },
+  heroContent: {
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: typography.sizes["2xl"],
+    fontWeight: "700",
+    fontFamily: typography.fontFamily.bold,
+    color: colors.text.dark,
+    marginBottom: spacing[1],
+  },
+  heroSubtitle: {
+    fontSize: typography.sizes.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.text.medium,
+  },
+  section: {
+    paddingHorizontal: spacing[4],
+    marginBottom: spacing[4],
+  },
+  loadingCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: spacing[8],
+    alignItems: "center",
+  },
+  loadingEmoji: {
     fontSize: 48,
-    marginRight: spacing[3],
+    marginBottom: spacing[2],
   },
-  greeting: {
+  loadingText: {
     fontSize: typography.sizes.sm,
     color: colors.text.light,
   },
-  welcomeText: {
-    fontSize: typography.sizes.xl,
-    fontWeight: "700",
-    color: colors.primary,
-  },
   experimentCard: {
     backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: spacing[4],
-    marginHorizontal: spacing[4],
-    marginBottom: spacing[4],
+    borderRadius: 24,
+    padding: spacing[5],
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   experimentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: spacing[2],
+    marginBottom: spacing[3],
   },
   weekBadge: {
-    backgroundColor: colors.primary + "20",
-    color: colors.primary,
-    paddingHorizontal: spacing[2],
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    borderRadius: 8,
+    borderRadius: 12,
+  },
+  weekBadgeText: {
+    color: colors.white,
     fontSize: typography.sizes.xs,
-    fontWeight: "600",
-    overflow: "hidden",
+    fontWeight: "700",
   },
   difficultyBadge: {
-    fontSize: typography.sizes.sm,
-    fontWeight: "600",
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: 12,
+  },
+  difficultyBadgeText: {
+    color: "#059669",
+    fontSize: typography.sizes.xs,
+    fontWeight: "700",
   },
   experimentTitle: {
-    fontSize: typography.sizes.lg,
+    fontSize: typography.sizes.xl,
     fontWeight: "700",
     color: colors.text.dark,
     marginBottom: spacing[2],
@@ -235,85 +392,155 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm,
     color: colors.text.medium,
     lineHeight: 20,
-    marginBottom: spacing[3],
+    marginBottom: spacing[4],
   },
-  experimentFooter: {
+  experimentMeta: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: spacing[4],
+    marginBottom: spacing[4],
   },
-  pointsText: {
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  timeText: {
-    color: colors.text.light,
+  metaText: {
     fontSize: typography.sizes.sm,
+    color: colors.text.light,
   },
-  statsGrid: {
+  startButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 24,
+    paddingVertical: spacing[4],
+    alignItems: "center",
+  },
+  startButtonText: {
+    color: colors.white,
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+  },
+  completedCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: spacing[8],
+    alignItems: "center",
+  },
+  completedEmoji: {
+    fontSize: 56,
+    marginBottom: spacing[2],
+  },
+  completedText: {
+    fontSize: typography.sizes.base,
+    color: colors.text.light,
+  },
+  achievementsCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: spacing[5],
+  },
+  achievementsTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: colors.text.dark,
+    marginBottom: spacing[4],
+  },
+  achievementsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: spacing[2],
-    marginBottom: spacing[6],
-    gap: spacing[2],
+    gap: spacing[3],
   },
-  statCard: {
-    width: "48%",
-    backgroundColor: colors.white,
-    borderRadius: 12,
+  achievementItem: {
+    width: "30%",
+    backgroundColor: colors.gray[50],
+    borderRadius: 16,
     padding: spacing[3],
     alignItems: "center",
   },
-  statIcon: {
-    fontSize: 32,
-    marginBottom: spacing[1],
+  achievementUnlocked: {
+    backgroundColor: "#FEF3C7",
   },
-  statTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: "700",
-    color: colors.text.dark,
-  },
-  statLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.light,
-    marginTop: spacing[1],
-    textAlign: "center",
-  },
-  section: {
-    paddingHorizontal: spacing[4],
-    marginBottom: spacing[6],
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: "700",
-    color: colors.text.dark,
-    marginBottom: spacing[3],
-  },
-  actionButton: {
-    flexDirection: "row",
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: spacing[3],
+  achievementIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.gray[100],
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: spacing[2],
-    alignItems: "center",
   },
-  actionIcon: {
-    fontSize: 32,
-    marginRight: spacing[3],
+  achievementIconContainerUnlocked: {
+    backgroundColor: "#FDE68A",
   },
-  actionContent: {
-    flex: 1,
+  achievementIcon: {
+    fontSize: 28,
   },
-  actionTitle: {
-    fontSize: typography.sizes.base,
+  achievementIconLocked: {
+    opacity: 0.5,
+  },
+  achievementName: {
+    fontSize: typography.sizes.xs,
     fontWeight: "600",
     color: colors.text.dark,
+    textAlign: "center",
+    marginBottom: spacing[1],
   },
-  actionDescription: {
+  achievementNameLocked: {
+    color: colors.text.lighter,
+  },
+  achievementDesc: {
+    fontSize: 9,
+    color: colors.text.light,
+    textAlign: "center",
+  },
+  achievementDescLocked: {
+    color: colors.text.lighter,
+  },
+  unlockedBadge: {
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: 8,
+    marginTop: spacing[2],
+  },
+  unlockedBadgeText: {
+    fontSize: 8,
+    color: "#059669",
+    fontWeight: "600",
+  },
+  scientistCard: {
+    backgroundColor: "#F3E8FF",
+    borderRadius: 24,
+    padding: spacing[5],
+    alignItems: "center",
+  },
+  scientistTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+    color: colors.text.dark,
+    textAlign: "center",
+    marginBottom: spacing[2],
+  },
+  scientistName: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: "#7C3AED",
+    marginBottom: spacing[3],
+  },
+  scientistQuoteBox: {
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 16,
+    padding: spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: "#D8B4FE",
+  },
+  scientistQuote: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.medium,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginBottom: spacing[2],
+  },
+  scientistInfo: {
     fontSize: typography.sizes.xs,
     color: colors.text.light,
-    marginTop: spacing[1],
+    textAlign: "center",
   },
   spacer: {
-    height: spacing[6],
+    height: spacing[8],
   },
 });

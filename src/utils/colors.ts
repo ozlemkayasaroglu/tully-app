@@ -6,17 +6,17 @@
 export const colors = {
   // Primary
   primary: "#14B8A6", // Teal
-  
+
   // Secondary Gradient
   secondary: {
     orange: "#F59E42",
     pink: "#F472B6",
     blue: "#3B82F6",
   },
-  
+
   // Background
   background: "#F8FEFB", // Light green
-  
+
   // Text
   text: {
     dark: "#0F172A",
@@ -24,13 +24,13 @@ export const colors = {
     light: "#6B7280",
     lighter: "#9CA3AF",
   },
-  
+
   // Semantic Colors
   success: "#4ADE80",
   warning: "#FBBF24",
   danger: "#FB923C",
   error: "#EF4444",
-  
+
   // Difficulty Colors
   difficulty: {
     kolay: "#4ADE80", // Green
@@ -38,7 +38,7 @@ export const colors = {
     zor: "#FB923C", // Orange
     uzman: "#EF4444", // Red
   },
-  
+
   // Neutral
   white: "#FFFFFF",
   black: "#000000",
@@ -58,9 +58,10 @@ export const colors = {
 
 export const typography = {
   fontFamily: {
-    header: "Fredoka",
-    institutional: "Baloo 2",
-    body: "System",
+    regular: "Nunito",
+    bold: "NunitoBold",
+    header: "NunitoBold",
+    body: "Nunito",
   },
   sizes: {
     xs: 12,

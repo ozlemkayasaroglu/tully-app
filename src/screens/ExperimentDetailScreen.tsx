@@ -3,19 +3,20 @@
  * Detailed view of a single experiment with steps and survey
  */
 
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
   Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { colors, spacing, typography } from "../utils/colors";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
+import { colors, spacing, typography } from "../utils/colors";
 
 interface ExperimentDetailScreenProps {
   navigation: any;
@@ -29,187 +30,239 @@ export default function ExperimentDetailScreen({
   const { experimentId } = route.params;
   const { allExperiments, completeExperiment } = useWeeklyExperiment();
   const [currentStep, setCurrentStep] = useState(0);
-  const [observation, setObservation] = useState("");
-  const [rating, setRating] = useState(0);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [ageGroup, setAgeGroup] = useState<string | null>(null);
 
   const experiment = allExperiments.find((exp) => exp.id === experimentId);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profile = await AsyncStorage.getItem("userProfile");
+        if (profile) {
+          const parsed = JSON.parse(profile);
+          setAgeGroup(parsed.ageGroup || null);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  useEffect(() => {
+    if (experiment) {
+      setAnswers(new Array(experiment.observationGuide?.length || 0).fill(""));
+    }
+  }, [experiment]);
 
   if (!experiment) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Deney bulunamadı</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Deney bulunamadı</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Geri Dön</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
-  const isLastStep = currentStep === experiment.steps.length;
-  const isSurveyStep = currentStep > experiment.steps.length;
+  const isYoung = ageGroup === "4-5 yaş" || ageGroup === "6-7 yaş";
+  const currentStepData = experiment.steps[currentStep];
+  const totalSteps = experiment.steps.length;
 
   const handleComplete = async () => {
-    if (!observation.trim()) {
-      Alert.alert("Hata", "Lütfen gözlemlerini yazını!");
-      return;
-    }
-
-    if (rating === 0) {
-      Alert.alert("Hata", "Lütfen deneyimi derecelendir!");
-      return;
-    }
-
     try {
-      await completeExperiment(experimentId, observation, rating);
-      Alert.alert("Tebrikler! 🎉", "Deneyi başarıyla tamamladın!", [
+      await completeExperiment(experiment.id, {
+        notes: answers.join(" | "),
+        rating: 5,
+      });
+      Alert.alert("Tebrikler!", "Deneyi başarıyla tamamladın! 🎉", [
         {
           text: "Tamam",
           onPress: () => navigation.navigate("Home"),
         },
       ]);
     } catch (error) {
-      Alert.alert("Hata", "Deney kaydedilirken hata oluştu!");
+      Alert.alert("Hata", "Deney tamamlanırken bir hata oluştu.");
     }
   };
 
+  // Survey Screen
+  if (showSurvey) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.surveyContainer}>
+          <View style={styles.surveyHeader}>
+            <Text style={styles.surveyEmoji}>📋</Text>
+            <Text style={styles.surveyTitle}>Deney Sonu Anketi</Text>
+            <Text style={styles.surveySubtitle}>
+              Deneyini tamamladın, şimdi gözlemlerini paylaş!
+            </Text>
+          </View>
+
+          <View style={styles.questionsContainer}>
+            {experiment.observationGuide?.map(
+              (question: any, index: number) => {
+                const questionText =
+                  typeof question === "string" ? question : question.text;
+                return (
+                  <View key={index} style={styles.questionCard}>
+                    <View style={styles.questionHeader}>
+                      <View style={styles.questionNumber}>
+                        <Text style={styles.questionNumberText}>
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <Text style={styles.questionText}>{questionText}</Text>
+                    </View>
+                    {!isYoung && (
+                      <TextInput
+                        style={styles.answerInput}
+                        value={answers[index]}
+                        onChangeText={(text) => {
+                          const newAnswers = [...answers];
+                          newAnswers[index] = text;
+                          setAnswers(newAnswers);
+                        }}
+                        placeholder="Cevabını buraya yaz..."
+                        placeholderTextColor={colors.text.lighter}
+                        multiline
+                      />
+                    )}
+                  </View>
+                );
+              },
+            )}
+          </View>
+
+          <View style={styles.surveyFooter}>
+            <Text style={styles.congratsEmoji}>🎉</Text>
+            <Text style={styles.congratsText}>
+              Harika bir iş çıkardın! Bilim yolculuğunda bir adım daha
+              ilerledin.
+            </Text>
+            <TouchableOpacity
+              style={styles.completeButton}
+              onPress={handleComplete}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.completeButtonText}>Deneyi Tamamla ✓</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Main Experiment Flow
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
+      <ScrollView>
+        {/* Header with Progress */}
+        <View style={styles.progressSection}>
           <TouchableOpacity
+            style={styles.backLink}
             onPress={() => navigation.goBack()}
-            style={styles.backButton}
           >
-            <Text style={styles.backButtonText}>← Geri</Text>
+            <Text style={styles.backLinkText}>← Deneylere Dön</Text>
           </TouchableOpacity>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${((currentStep + 1) / (experiment.steps.length + 2)) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-        </View>
 
-        {/* Experiment Info */}
-        <View style={styles.infoBox}>
-          <Text style={styles.title}>{experiment.title}</Text>
-          <Text style={styles.description}>{experiment.description}</Text>
-          <View style={styles.metaInfo}>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>⏱️ Tahmini Süre</Text>
-              <Text style={styles.metaValue}>{experiment.estimatedTime}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>⭐ Puan</Text>
-              <Text style={styles.metaValue}>+{experiment.points}</Text>
+          <View style={styles.progressContent}>
+            <Text style={styles.experimentTitle}>{experiment.title}</Text>
+            <Text style={styles.stepIndicator}>
+              Adım {currentStep + 1} / {totalSteps}
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${((currentStep + 1) / totalSteps) * 100}%` },
+                ]}
+              />
             </View>
           </View>
         </View>
 
-        {/* Materials */}
+        {/* Materials (only on first step) */}
         {currentStep === 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Gerekli Malzemeler 📦</Text>
-            {experiment.materials.map((material, index) => (
-              <View key={index} style={styles.materialItem}>
-                <Text style={styles.materialIcon}>{material.icon}</Text>
-                <Text style={styles.materialName}>{material.name}</Text>
-                {material.optional && (
-                  <Text style={styles.optionalBadge}>İsteğe Bağlı</Text>
-                )}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionIcon}>📦</Text>
+                <Text style={styles.sectionTitle}>Gerekli Malzemeler</Text>
               </View>
-            ))}
-          </View>
-        )}
-
-        {/* Steps */}
-        {currentStep > 0 && currentStep <= experiment.steps.length && (
-          <View style={styles.section}>
-            <Text style={styles.stepHeader}>
-              Adım {currentStep} / {experiment.steps.length}
-            </Text>
-            <View style={styles.stepBox}>
-              <Text style={styles.stepInstruction}>
-                {experiment.steps[currentStep - 1].instruction}
-              </Text>
-              {experiment.steps[currentStep - 1].tip && (
-                <View style={styles.tipBox}>
-                  <Text style={styles.tipLabel}>💡 İpucu:</Text>
-                  <Text style={styles.tipText}>
-                    {experiment.steps[currentStep - 1].tip}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.materialsGrid}>
+                {experiment.materials.map((material: any, index: number) => (
+                  <View key={index} style={styles.materialItem}>
+                    <Text style={styles.materialIcon}>{material.icon}</Text>
+                    <View style={styles.materialInfo}>
+                      <Text style={styles.materialName}>{material.name}</Text>
+                      {material.optional && (
+                        <Text style={styles.materialOptional}>
+                          İsteğe bağlı
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
           </View>
         )}
 
-        {/* Survey */}
-        {currentStep > experiment.steps.length && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Gözlemlerini Paylaş 📝</Text>
-            <TextInput
-              style={styles.surveyInput}
-              placeholder="Ne gördün? Neler öğrendin?"
-              placeholderTextColor={colors.text.lighter}
-              value={observation}
-              onChangeText={setObservation}
-              multiline
-              numberOfLines={5}
-            />
-
-            <Text style={styles.sectionTitle}>
-              Deneyi Nasıl Buldun? ⭐
-            </Text>
-            <View style={styles.ratingBox}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity
-                  key={star}
-                  onPress={() => setRating(star)}
-                  style={styles.starButton}
-                >
-                  <Text
-                    style={[
-                      styles.star,
-                      rating >= star && styles.starActive,
-                    ]}
-                  >
-                    ★
-                  </Text>
-                </TouchableOpacity>
-              ))}
+        {/* Current Step */}
+        <View style={styles.section}>
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>🧪</Text>
+              <Text style={styles.sectionTitle}>Adım {currentStep + 1}</Text>
             </View>
+            <Text style={styles.instructionText}>
+              {currentStepData.instruction}
+            </Text>
+            {currentStepData.tip && (
+              <View style={styles.tipBox}>
+                <Text style={styles.tipTitle}>💡 İpucu</Text>
+                <Text style={styles.tipText}>{currentStepData.tip}</Text>
+              </View>
+            )}
           </View>
-        )}
+        </View>
 
         {/* Navigation Buttons */}
-        <View style={styles.navigationBox}>
+        <View style={styles.navigationButtons}>
           {currentStep > 0 && (
             <TouchableOpacity
-              style={styles.buttonSecondary}
+              style={styles.prevButton}
               onPress={() => setCurrentStep(currentStep - 1)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.buttonSecondaryText}>← Geri</Text>
+              <Text style={styles.prevButtonText}>← Önceki</Text>
             </TouchableOpacity>
           )}
-
-          {isSurveyStep ? (
+          {currentStep < totalSteps - 1 ? (
             <TouchableOpacity
-              style={styles.buttonPrimary}
-              onPress={handleComplete}
+              style={[styles.nextButton, currentStep === 0 && styles.fullWidth]}
+              onPress={() => setCurrentStep(currentStep + 1)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.buttonPrimaryText}>Tamamla ✅</Text>
+              <Text style={styles.nextButtonText}>Sonraki →</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.buttonPrimary}
-              onPress={() => setCurrentStep(currentStep + 1)}
+              style={[styles.nextButton, currentStep === 0 && styles.fullWidth]}
+              onPress={() => setShowSurvey(true)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.buttonPrimaryText}>
-                {isLastStep ? "Ankete Geç" : "İleri"}
-              </Text>
+              <Text style={styles.nextButtonText}>Ankete Geç 📝</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -225,190 +278,269 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing[4],
+  },
+  errorText: {
+    fontSize: typography.sizes.lg,
+    color: colors.text.dark,
+    marginBottom: spacing[4],
   },
   backButton: {
-    marginBottom: spacing[3],
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[3],
+    borderRadius: 12,
   },
   backButtonText: {
-    color: colors.primary,
+    color: colors.white,
     fontSize: typography.sizes.base,
     fontWeight: "600",
   },
+  progressSection: {
+    backgroundColor: "#E0F7F1",
+    padding: spacing[5],
+  },
+  backLink: {
+    marginBottom: spacing[4],
+  },
+  backLinkText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "700",
+    color: colors.text.dark,
+  },
+  progressContent: {
+    marginTop: spacing[4],
+  },
+  experimentTitle: {
+    fontSize: typography.sizes["2xl"],
+    fontWeight: "700",
+    color: colors.text.dark,
+    marginBottom: spacing[2],
+  },
+  stepIndicator: {
+    fontSize: typography.sizes.base,
+    color: colors.text.medium,
+    marginBottom: spacing[3],
+  },
   progressBar: {
-    height: 4,
-    backgroundColor: colors.gray[200],
-    borderRadius: 2,
+    height: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    borderRadius: 4,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: colors.primary,
   },
-  infoBox: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
+  section: {
     padding: spacing[4],
-    marginHorizontal: spacing[4],
+  },
+  sectionCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: spacing[5],
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[2],
     marginBottom: spacing[4],
   },
-  title: {
+  sectionIcon: {
+    fontSize: 24,
+  },
+  sectionTitle: {
     fontSize: typography.sizes.lg,
     fontWeight: "700",
     color: colors.text.dark,
-    marginBottom: spacing[2],
   },
-  description: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.medium,
-    lineHeight: 20,
-    marginBottom: spacing[3],
-  },
-  metaInfo: {
-    flexDirection: "row",
-    gap: spacing[4],
-  },
-  metaItem: {
-    flex: 1,
-  },
-  metaLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.light,
-    marginBottom: spacing[1],
-  },
-  metaValue: {
-    fontSize: typography.sizes.base,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  section: {
-    paddingHorizontal: spacing[4],
-    marginBottom: spacing[4],
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.base,
-    fontWeight: "700",
-    color: colors.text.dark,
-    marginBottom: spacing[3],
+  materialsGrid: {
+    gap: spacing[3],
   },
   materialItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: spacing[2],
-    paddingHorizontal: spacing[3],
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    marginBottom: spacing[2],
+    backgroundColor: colors.background,
+    padding: spacing[3],
+    borderRadius: 16,
+    gap: spacing[2],
   },
   materialIcon: {
     fontSize: 20,
-    marginRight: spacing[3],
+  },
+  materialInfo: {
+    flex: 1,
   },
   materialName: {
-    flex: 1,
     fontSize: typography.sizes.sm,
     color: colors.text.dark,
+    fontWeight: "600",
   },
-  optionalBadge: {
+  materialOptional: {
     fontSize: typography.sizes.xs,
-    color: colors.text.lighter,
-    fontStyle: "italic",
+    color: colors.text.light,
   },
-  stepHeader: {
-    fontSize: typography.sizes.lg,
-    fontWeight: "700",
-    color: colors.primary,
-    marginBottom: spacing[3],
-  },
-  stepBox: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: spacing[4],
-  },
-  stepInstruction: {
+  instructionText: {
     fontSize: typography.sizes.base,
     color: colors.text.dark,
     lineHeight: 24,
-    marginBottom: spacing[3],
+    marginBottom: spacing[4],
   },
   tipBox: {
-    backgroundColor: colors.secondary.blue + "10",
-    borderRadius: 8,
-    padding: spacing[3],
-    borderLeftWidth: 4,
-    borderLeftColor: colors.secondary.blue,
+    backgroundColor: "#FEF3C7",
+    padding: spacing[4],
+    borderRadius: 16,
   },
-  tipLabel: {
-    fontSize: typography.sizes.sm,
-    fontWeight: "600",
-    color: colors.secondary.blue,
+  tipTitle: {
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+    color: colors.text.dark,
     marginBottom: spacing[1],
   },
   tipText: {
     fontSize: typography.sizes.sm,
-    color: colors.text.medium,
+    color: colors.text.dark,
     lineHeight: 20,
   },
-  surveyInput: {
+  navigationButtons: {
+    flexDirection: "row",
+    paddingHorizontal: spacing[4],
+    gap: spacing[3],
+  },
+  prevButton: {
+    flex: 1,
+    backgroundColor: colors.gray[200],
+    paddingVertical: spacing[4],
+    borderRadius: 24,
+    alignItems: "center",
+  },
+  prevButtonText: {
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+    color: colors.text.dark,
+  },
+  nextButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing[4],
+    borderRadius: 24,
+    alignItems: "center",
+  },
+  fullWidth: {
+    flex: 1,
+  },
+  nextButtonText: {
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+    color: colors.white,
+  },
+  surveyContainer: {
+    padding: spacing[5],
+  },
+  surveyHeader: {
+    alignItems: "center",
+    marginBottom: spacing[6],
+  },
+  surveyEmoji: {
+    fontSize: 56,
+    marginBottom: spacing[2],
+  },
+  surveyTitle: {
+    fontSize: typography.sizes["2xl"],
+    fontWeight: "700",
+    color: "#7C3AED",
+    marginBottom: spacing[2],
+    textAlign: "center",
+  },
+  surveySubtitle: {
+    fontSize: typography.sizes.sm,
+    color: "#6D28D9",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  questionsContainer: {
+    gap: spacing[4],
+    marginBottom: spacing[6],
+  },
+  questionCard: {
+    backgroundColor: "#F3E8FF",
+    borderRadius: 16,
+    padding: spacing[4],
+  },
+  questionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing[2],
+    marginBottom: spacing[3],
+  },
+  questionNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#C4B5FD",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  questionNumberText: {
+    color: colors.white,
+    fontSize: typography.sizes.xs,
+    fontWeight: "700",
+  },
+  questionText: {
+    flex: 1,
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+    color: "#7C3AED",
+  },
+  answerInput: {
     backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: "#C4B5FD",
     borderRadius: 12,
     padding: spacing[3],
     fontSize: typography.sizes.sm,
     color: colors.text.dark,
+    minHeight: 80,
     textAlignVertical: "top",
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-    marginBottom: spacing[4],
   },
-  ratingBox: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: spacing[3],
-    marginBottom: spacing[4],
+  surveyFooter: {
+    alignItems: "center",
   },
-  starButton: {
-    padding: spacing[2],
-  },
-  star: {
+  congratsEmoji: {
     fontSize: 32,
-    color: colors.gray[300],
+    marginBottom: spacing[2],
   },
-  starActive: {
-    color: colors.secondary.orange,
-  },
-  navigationBox: {
-    flexDirection: "row",
-    gap: spacing[2],
-    paddingHorizontal: spacing[4],
+  congratsText: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.medium,
+    textAlign: "center",
     marginBottom: spacing[4],
+    lineHeight: 20,
   },
-  buttonSecondary: {
-    flex: 1,
-    paddingVertical: spacing[3],
-    borderRadius: 12,
-    backgroundColor: colors.gray[200],
-    alignItems: "center",
-  },
-  buttonSecondaryText: {
-    color: colors.text.dark,
-    fontSize: typography.sizes.base,
-    fontWeight: "600",
-  },
-  buttonPrimary: {
-    flex: 1,
-    paddingVertical: spacing[3],
-    borderRadius: 12,
+  completeButton: {
     backgroundColor: colors.primary,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[8],
+    borderRadius: 24,
+    width: "100%",
+    maxWidth: 300,
     alignItems: "center",
   },
-  buttonPrimaryText: {
+  completeButtonText: {
     color: colors.white,
-    fontSize: typography.sizes.base,
-    fontWeight: "600",
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
   },
   spacer: {
-    height: spacing[6],
+    height: spacing[8],
   },
 });

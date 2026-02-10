@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#F8FEFB"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTabletMode": true,
       "bundleIdentifier": "com.ozlemkayasaroglu.tully",
@@ -25,7 +27,9 @@
         "backgroundColor": "#F8FEFB"
       },
       "package": "com.ozlemkayasaroglu.tully",
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -35,6 +39,9 @@
       "eas": {
         "projectId": "tully-science-experiments"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

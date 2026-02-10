@@ -1,140 +1,207 @@
 /**
  * ExperimentsScreen
- * Grid of all experiments with filters
+ * Grid of all experiments with progress sidebar
  */
 
-import React, { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   SafeAreaView,
-  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { colors, spacing, typography } from "../utils/colors";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
-import type { ExperimentDifficulty } from "../types/experimentTypes";
+import { colors, spacing, typography } from "../utils/colors";
 
 interface ExperimentsScreenProps {
   navigation: any;
 }
 
-const DIFFICULTIES: ExperimentDifficulty[] = ["kolay", "orta", "zor", "uzman"];
-
 export default function ExperimentsScreen({
   navigation,
 }: ExperimentsScreenProps) {
-  const { allExperiments } = useWeeklyExperiment();
-  const [selectedDifficulty, setSelectedDifficulty] =
-    useState<ExperimentDifficulty | null>(null);
+  const { allExperiments, progress, loading } = useWeeklyExperiment();
+  const [ageGroup, setAgeGroup] = useState<string | null>(null);
 
-  const filteredExperiments = selectedDifficulty
-    ? allExperiments.filter((exp) => exp.difficulty === selectedDifficulty)
-    : allExperiments;
-
-  const renderExperimentCard = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.experimentCard}
-      onPress={() =>
-        navigation.navigate("ExperimentDetail", { experimentId: item.id })
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profile = await AsyncStorage.getItem("userProfile");
+        if (profile) {
+          const parsed = JSON.parse(profile);
+          setAgeGroup(parsed.ageGroup || null);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
       }
-      activeOpacity={0.8}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.weekBadge}>Hafta {item.weekNumber}</Text>
-        <Text style={styles.statusIcon}>
-          {item.status === "completed" && "✅"}
-          {item.status === "in_progress" && "⏳"}
-          {item.status === "available" && "🆕"}
-          {item.status === "locked" && "🔒"}
-        </Text>
-      </View>
-      <Text style={styles.cardTitle}>{item.title}</Text>
-      <Text style={styles.cardDescription} numberOfLines={2}>
-        {item.description}
-      </Text>
-      <View style={styles.cardFooter}>
-        <Text style={styles.pointsText}>+{item.points} Puan</Text>
-        <View style={styles.tagsContainer}>
-          <Text style={styles.difficultyTag}>
-            {item.difficulty === "kolay" && "🟢"}
-            {item.difficulty === "orta" && "🟡"}
-            {item.difficulty === "zor" && "🔴"}
-            {item.difficulty === "uzman" && "⭐"}
-          </Text>
+    };
+
+    loadProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingEmoji}>🧪</Text>
+          <Text style={styles.loadingText}>Deneyler hazırlanıyor...</Text>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </SafeAreaView>
+    );
+  }
+
+  const completionRate =
+    allExperiments.length === 0
+      ? 0
+      : (progress.totalExperimentsCompleted / allExperiments.length) * 100;
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Deneyler 🧪</Text>
-        <Text style={styles.subtitle}>
-          Toplam {allExperiments.length} deney - {selectedDifficulty ? "Filtrelenmiş" : "Tümü"}
-        </Text>
-      </View>
-
-      {/* Difficulty Filter */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            selectedDifficulty === null && styles.filterButtonActive,
-          ]}
-          onPress={() => setSelectedDifficulty(null)}
-        >
-          <Text
-            style={[
-              styles.filterButtonText,
-              selectedDifficulty === null && styles.filterButtonTextActive,
-            ]}
-          >
-            Tümü
-          </Text>
-        </TouchableOpacity>
-
-        {DIFFICULTIES.map((difficulty) => (
-          <TouchableOpacity
-            key={difficulty}
-            style={[
-              styles.filterButton,
-              selectedDifficulty === difficulty && styles.filterButtonActive,
-            ]}
-            onPress={() => setSelectedDifficulty(difficulty)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                selectedDifficulty === difficulty &&
-                  styles.filterButtonTextActive,
-              ]}
-            >
-              {difficulty === "kolay" && "🟢"}
-              {difficulty === "orta" && "🟡"}
-              {difficulty === "zor" && "🔴"}
-              {difficulty === "uzman" && "⭐"}
-              {" " + difficulty}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Progress Hero Card */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroCard}>
+            <Text style={styles.heroTitle}>Deneyler 🧪</Text>
+            <Text style={styles.heroSubtitle}>
+              Her hafta yeni bir deneyle keşfet, öğren ve yıldızları topla ✨
             </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
-      {/* Experiments List */}
-      <FlatList
-        data={filteredExperiments}
-        renderItem={renderExperimentCard}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={true}
-        contentContainerStyle={styles.listContent}
-      />
+            {/* Progress Card */}
+            <View style={styles.progressCard}>
+              <View style={styles.progressHeader}>
+                <Text style={styles.progressLabel}>İlerleme</Text>
+                <Text style={styles.progressCount}>
+                  {progress.totalExperimentsCompleted} / {allExperiments.length}
+                </Text>
+              </View>
+              <View style={styles.progressBarContainer}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${completionRate}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressFooter}>
+                Devam et! Yeni deneyler seni bekliyor 🚀
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Experiments List */}
+        <View style={styles.experimentsSection}>
+          {allExperiments.length > 0 ? (
+            allExperiments.map((exp, index) => {
+              const isCompleted = exp.status === "completed";
+              const isLocked = exp.status === "locked";
+
+              return (
+                <View
+                  key={exp.id}
+                  style={[
+                    styles.experimentCard,
+                    isLocked && styles.experimentCardLocked,
+                  ]}
+                >
+                  {/* Header */}
+                  <View style={styles.experimentHeader}>
+                    <View style={styles.weekBadge}>
+                      <Text style={styles.weekBadgeText}>
+                        Hafta {index + 1}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.difficultyBadge,
+                        exp.difficulty === "kolay" && styles.difficultyEasy,
+                        exp.difficulty === "orta" && styles.difficultyMedium,
+                        exp.difficulty === "zor" && styles.difficultyHard,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.difficultyText,
+                          exp.difficulty === "kolay" &&
+                            styles.difficultyTextEasy,
+                          exp.difficulty === "orta" &&
+                            styles.difficultyTextMedium,
+                          exp.difficulty === "zor" && styles.difficultyTextHard,
+                        ]}
+                      >
+                        {exp.difficulty === "kolay"
+                          ? "Kolay"
+                          : exp.difficulty === "orta"
+                            ? "Orta"
+                            : "Zor"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Title & Description */}
+                  <Text style={styles.experimentTitle}>{exp.title}</Text>
+                  <Text style={styles.experimentDescription}>
+                    {exp.description}
+                  </Text>
+
+                  {/* Meta Info */}
+                  <View style={styles.experimentMeta}>
+                    <Text style={styles.metaText}>⏱️ {exp.estimatedTime}</Text>
+                    <Text style={styles.metaText}>⭐ +{exp.points} XP</Text>
+                    {isCompleted && (
+                      <Text style={styles.completedText}>✓ Tamamlandı</Text>
+                    )}
+                    {isLocked && (
+                      <Text style={styles.lockedText}>🔒 Kilitli</Text>
+                    )}
+                  </View>
+
+                  {/* CTA Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.experimentButton,
+                      isLocked && styles.experimentButtonLocked,
+                      isCompleted && styles.experimentButtonCompleted,
+                    ]}
+                    onPress={() => {
+                      if (!isLocked) {
+                        navigation.navigate("ExperimentDetail", {
+                          experimentId: exp.id,
+                        });
+                      }
+                    }}
+                    disabled={isLocked}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.experimentButtonText,
+                        isLocked && styles.experimentButtonTextLocked,
+                      ]}
+                    >
+                      {isLocked
+                        ? "Kilitli"
+                        : isCompleted
+                          ? "Tekrar Yap"
+                          : "Deneye Başla 🚀"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🔬</Text>
+              <Text style={styles.emptyText}>Henüz deney bulunmuyor</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.spacer} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -144,99 +211,203 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    paddingHorizontal: spacing[4],
-    paddingTop: spacing[4],
-    paddingBottom: spacing[3],
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  title: {
+  loadingEmoji: {
+    fontSize: 56,
+    marginBottom: spacing[3],
+  },
+  loadingText: {
+    fontSize: typography.sizes.base,
+    color: colors.text.light,
+  },
+  heroSection: {
+    padding: spacing[4],
+    paddingTop: spacing[6],
+  },
+  heroCard: {
+    backgroundColor: "#E0F7F1",
+    borderRadius: 24,
+    padding: spacing[5],
+  },
+  heroTitle: {
     fontSize: typography.sizes["2xl"],
     fontWeight: "700",
     color: colors.text.dark,
+    marginBottom: spacing[2],
   },
-  subtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.text.light,
-    marginTop: spacing[1],
-  },
-  filterScroll: {
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    gap: spacing[2],
-  },
-  filterButton: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: 8,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray[200],
-  },
-  filterButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterButtonText: {
-    fontSize: typography.sizes.sm,
+  heroSubtitle: {
+    fontSize: typography.sizes.base,
     color: colors.text.medium,
+    lineHeight: 22,
+    marginBottom: spacing[5],
+  },
+  progressCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderRadius: 16,
+    padding: spacing[4],
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing[2],
+  },
+  progressLabel: {
+    fontSize: typography.sizes.sm,
     fontWeight: "600",
+    color: colors.text.dark,
   },
-  filterButtonTextActive: {
-    color: colors.white,
+  progressCount: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "600",
+    color: colors.primary,
   },
-  listContent: {
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: colors.white,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginBottom: spacing[3],
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: colors.primary,
+  },
+  progressFooter: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.light,
+  },
+  experimentsSection: {
     paddingHorizontal: spacing[4],
-    paddingBottom: spacing[6],
-    gap: spacing[3],
+    gap: spacing[4],
   },
   experimentCard: {
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: spacing[3],
+    borderRadius: 24,
+    padding: spacing[5],
+    marginBottom: spacing[4],
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  cardHeader: {
+  experimentCardLocked: {
+    opacity: 0.5,
+  },
+  experimentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing[2],
+    marginBottom: spacing[3],
   },
   weekBadge: {
-    backgroundColor: colors.primary + "20",
-    color: colors.primary,
-    paddingHorizontal: spacing[2],
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    borderRadius: 6,
+    borderRadius: 12,
+  },
+  weekBadgeText: {
+    color: colors.white,
     fontSize: typography.sizes.xs,
-    fontWeight: "600",
+    fontWeight: "700",
   },
-  statusIcon: {
-    fontSize: 18,
+  difficultyBadge: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: 12,
   },
-  cardTitle: {
-    fontSize: typography.sizes.base,
+  difficultyEasy: {
+    backgroundColor: "#D1FAE5",
+  },
+  difficultyMedium: {
+    backgroundColor: "#FEF3C7",
+  },
+  difficultyHard: {
+    backgroundColor: "#FEE2E2",
+  },
+  difficultyText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: "700",
+  },
+  difficultyTextEasy: {
+    color: "#059669",
+  },
+  difficultyTextMedium: {
+    color: "#D97706",
+  },
+  difficultyTextHard: {
+    color: "#DC2626",
+  },
+  experimentTitle: {
+    fontSize: typography.sizes.xl,
     fontWeight: "700",
     color: colors.text.dark,
-    marginBottom: spacing[1],
-  },
-  cardDescription: {
-    fontSize: typography.sizes.xs,
-    color: colors.text.medium,
     marginBottom: spacing[2],
   },
-  cardFooter: {
+  experimentDescription: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.medium,
+    lineHeight: 20,
+    marginBottom: spacing[4],
+  },
+  experimentMeta: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: spacing[3],
+    marginBottom: spacing[4],
+  },
+  metaText: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.light,
+  },
+  completedText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "600",
+    color: "#059669",
+  },
+  lockedText: {
+    fontSize: typography.sizes.sm,
+    color: colors.text.light,
+  },
+  experimentButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing[4],
+    borderRadius: 24,
     alignItems: "center",
   },
-  pointsText: {
-    fontWeight: "600",
-    color: colors.primary,
-    fontSize: typography.sizes.sm,
+  experimentButtonLocked: {
+    backgroundColor: "#FECACA",
   },
-  tagsContainer: {
-    flexDirection: "row",
+  experimentButtonCompleted: {
+    backgroundColor: "#6EE7B7",
   },
-  difficultyTag: {
-    fontSize: 16,
+  experimentButtonText: {
+    color: colors.white,
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+  },
+  experimentButtonTextLocked: {
+    color: "#FCA5A5",
+  },
+  emptyState: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: spacing[8],
+    alignItems: "center",
+  },
+  emptyEmoji: {
+    fontSize: 56,
+    marginBottom: spacing[3],
+  },
+  emptyText: {
+    fontSize: typography.sizes.base,
+    color: colors.text.light,
+  },
+  spacer: {
+    height: spacing[8],
   },
 });
