@@ -70,6 +70,7 @@ export interface WeeklyExperiment {
     rating: number;
     completedAt: string;
   };
+  learningSummary?: string;
   ageSuitable?: boolean;
 }
 

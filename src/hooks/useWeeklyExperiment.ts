@@ -3,14 +3,14 @@
  * Manages experiment data, progress, and state
  */
 
-import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+import { weeklyExperiments } from "../data/weeklyExperiments";
 import type {
+  Badge,
   WeeklyExperiment,
   WeeklyProgress,
-  Badge,
 } from "../types/experimentTypes";
-import { weeklyExperiments } from "../data/weeklyExperiments";
 
 const ACHIEVEMENTS: Badge[] = [
   {
@@ -92,10 +92,11 @@ interface UseWeeklyExperimentReturn {
   allExperiments: WeeklyExperiment[];
   progress: WeeklyProgress;
   loading: boolean;
+  startExperiment: (experimentId: string) => Promise<void>;
   completeExperiment: (
     experimentId: string,
     observation: string,
-    rating: number
+    rating: number,
   ) => Promise<void>;
   unlockAchievements: () => Promise<Badge[]>;
 }
@@ -134,7 +135,7 @@ export function useWeeklyExperiment(): UseWeeklyExperimentReturn {
           setAllExperiments(experimentsWithStatus as WeeklyExperiment[]);
           await AsyncStorage.setItem(
             "experiments",
-            JSON.stringify(experimentsWithStatus)
+            JSON.stringify(experimentsWithStatus),
           );
         }
       } catch (error) {
@@ -152,13 +153,35 @@ export function useWeeklyExperiment(): UseWeeklyExperimentReturn {
     allExperiments.find((exp) => exp.status === "available") ||
     null;
 
+  const startExperiment = async (experimentId: string) => {
+    try {
+      const updatedExperiments = allExperiments.map((exp) => {
+        if (exp.id === experimentId && exp.status === "available") {
+          return {
+            ...exp,
+            status: "in_progress" as const,
+          };
+        }
+        return exp;
+      });
+
+      setAllExperiments(updatedExperiments);
+      await AsyncStorage.setItem(
+        "experiments",
+        JSON.stringify(updatedExperiments),
+      );
+    } catch (error) {
+      console.error("Error starting experiment:", error);
+    }
+  };
+
   const completeExperiment = async (
     experimentId: string,
     observation: string,
-    rating: number
+    rating: number,
   ) => {
     try {
-      const updatedExperiments = allExperiments.map((exp) => {
+      const updatedExperiments = allExperiments.map((exp, index) => {
         if (exp.id === experimentId) {
           return {
             ...exp,
@@ -171,11 +194,23 @@ export function useWeeklyExperiment(): UseWeeklyExperimentReturn {
             completedAt: new Date().toISOString(),
           };
         }
+
+        // Unlock next experiment if current one is completed
+        const completedIndex = allExperiments.findIndex(
+          (e) => e.id === experimentId,
+        );
+        if (index === completedIndex + 1 && exp.status === "locked") {
+          return {
+            ...exp,
+            status: "available" as const,
+          };
+        }
+
         return exp;
       });
 
       const completedExp = updatedExperiments.find(
-        (exp) => exp.id === experimentId
+        (exp) => exp.id === experimentId,
       );
       const points = completedExp?.points || 0;
 
@@ -189,13 +224,10 @@ export function useWeeklyExperiment(): UseWeeklyExperimentReturn {
       setProgress(newProgress);
       setAllExperiments(updatedExperiments);
 
-      await AsyncStorage.setItem(
-        "userProgress",
-        JSON.stringify(newProgress)
-      );
+      await AsyncStorage.setItem("userProgress", JSON.stringify(newProgress));
       await AsyncStorage.setItem(
         "experiments",
-        JSON.stringify(updatedExperiments)
+        JSON.stringify(updatedExperiments),
       );
     } catch (error) {
       console.error("Error completing experiment:", error);
@@ -234,10 +266,7 @@ export function useWeeklyExperiment(): UseWeeklyExperimentReturn {
     };
 
     setProgress(newProgress);
-    await AsyncStorage.setItem(
-      "userProgress",
-      JSON.stringify(newProgress)
-    );
+    await AsyncStorage.setItem("userProgress", JSON.stringify(newProgress));
 
     return unlockedBadges;
   };
@@ -247,6 +276,7 @@ export function useWeeklyExperiment(): UseWeeklyExperimentReturn {
     allExperiments,
     progress,
     loading,
+    startExperiment,
     completeExperiment,
     unlockAchievements,
   };

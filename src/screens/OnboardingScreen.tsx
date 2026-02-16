@@ -168,7 +168,6 @@ export default function OnboardingScreen({
               ]}
             >
               <View style={styles.speechBubbleInner}>
-                <Text style={styles.speechEmoji}>👋</Text>
                 <Text style={styles.speechBubbleText}>
                   Merhaba! Ben
                   <Text style={styles.highlightText}> Tully!</Text>
@@ -276,10 +275,6 @@ const styles = StyleSheet.create({
   },
   speechBubbleInner: {
     alignItems: "center",
-  },
-  speechEmoji: {
-    fontSize: 32,
-    marginBottom: spacing[2],
   },
   speechBubbleText: {
     fontSize: typography.sizes.lg,

@@ -4,10 +4,11 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
-  SafeAreaView,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +16,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { SpeakButton } from "../components/SpeakButton";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
 import { colors, spacing, typography } from "../utils/colors";
 
@@ -27,10 +31,14 @@ export default function ExperimentDetailScreen({
   navigation,
   route,
 }: ExperimentDetailScreenProps) {
+  const router = useRouter();
   const { experimentId } = route.params;
-  const { allExperiments, completeExperiment } = useWeeklyExperiment();
+  const { allExperiments, completeExperiment, startExperiment } =
+    useWeeklyExperiment();
+  const { ttsEnabled, speakText } = useTextToSpeech();
   const [currentStep, setCurrentStep] = useState(0);
   const [showSurvey, setShowSurvey] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [answers, setAnswers] = useState<string[]>([]);
   const [ageGroup, setAgeGroup] = useState<string | null>(null);
 
@@ -51,6 +59,13 @@ export default function ExperimentDetailScreen({
 
     loadProfile();
   }, []);
+
+  // Deney başladığında statusu "in_progress" yap
+  useEffect(() => {
+    if (experiment && experiment.status === "available") {
+      startExperiment(experimentId);
+    }
+  }, [experimentId, experiment?.status]);
 
   useEffect(() => {
     if (experiment) {
@@ -80,16 +95,20 @@ export default function ExperimentDetailScreen({
 
   const handleComplete = async () => {
     try {
-      await completeExperiment(experiment.id, {
-        notes: answers.join(" | "),
-        rating: 5,
-      });
-      Alert.alert("Tebrikler!", "Deneyi başarıyla tamamladın! 🎉", [
-        {
-          text: "Tamam",
-          onPress: () => navigation.navigate("Home"),
-        },
-      ]);
+      await completeExperiment(experiment.id, answers.join(" | "), 5);
+
+      // Tebrik sesini çal
+      if (ttsEnabled) {
+        speakText("Tebrikler! Deneyi başarıyla tamamladın!");
+      }
+
+      setShowCompletionModal(true);
+
+      // Modal gösterildikten 4 saniye sonra anasayfaya yönlendir (state update için daha fazla zaman)
+      setTimeout(() => {
+        setShowCompletionModal(false);
+        router.navigate("/");
+      }, 4000);
     } catch (error) {
       Alert.alert("Hata", "Deney tamamlanırken bir hata oluştu.");
     }
@@ -99,6 +118,54 @@ export default function ExperimentDetailScreen({
   if (showSurvey) {
     return (
       <SafeAreaView style={styles.container}>
+        <Modal
+          visible={showCompletionModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.completionModal}>
+              <Text style={styles.completionEmoji}>🎉</Text>
+              <Text style={styles.completionTitle}>Tebrikler!</Text>
+              <Text style={styles.completionSubtitle}>
+                Deneyi başarıyla tamamladın!
+              </Text>
+              <Text style={styles.completionMessage}>
+                Harika bir iş çıkardın! Bilim yolculuğunda bir adım daha
+                ilerledin.
+              </Text>
+              <View style={styles.completionStats}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statEmoji}>⭐</Text>
+                  <Text style={styles.statValue}>+50 XP</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statEmoji}>🏆</Text>
+                  <Text style={styles.statValue}>Rozet!</Text>
+                </View>
+              </View>
+              {ttsEnabled && (
+                <SpeakButton
+                  text="Tebrikler! Deneyi başarıyla tamamladın! Harika bir iş çıkardın!"
+                  onSpeak={speakText}
+                  size="medium"
+                  style={styles.completionTtsButton}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.completionButton}
+                onPress={() => {
+                  setShowCompletionModal(false);
+                  router.navigate("/");
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.completionButtonText}>Anasayfaya Dön 🏠</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
         <ScrollView contentContainerStyle={styles.surveyContainer}>
           <View style={styles.surveyHeader}>
             <Text style={styles.surveyEmoji}>📋</Text>
@@ -165,6 +232,61 @@ export default function ExperimentDetailScreen({
   // Main Experiment Flow
   return (
     <SafeAreaView style={styles.container}>
+      {/* Completion Modal */}
+      <Modal
+        visible={showCompletionModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.completionModal}>
+            <Text style={styles.completionEmoji}>🎉</Text>
+            <Text style={styles.completionTitle}>Tebrikler!</Text>
+            <Text style={styles.completionSubtitle}>
+              Deneyi başarıyla tamamladın!
+            </Text>
+            <Text style={styles.completionMessage}>
+              Harika bir iş çıkardın! Bilim yolculuğunda bir adım daha
+              ilerledin.
+            </Text>
+            <View style={styles.completionStats}>
+              <View style={styles.statBox}>
+                <Text style={styles.statEmoji}>⭐</Text>
+                <Text style={styles.statValue}>+50 XP</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statEmoji}>🏆</Text>
+                <Text style={styles.statValue}>Rozet!</Text>
+              </View>
+            </View>
+            {ttsEnabled && (
+              <SpeakButton
+                text="Tebrikler! Deneyi başarıyla tamamladın! Harika bir iş çıkardın!"
+                onSpeak={speakText}
+                size="medium"
+                style={styles.completionTtsButton}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.completionButton}
+              onPress={() => {
+                setShowCompletionModal(false);
+                navigation.reset({
+                  index: 0,
+                  routes: [
+                    { name: "(tabs)", params: { screen: "HomeScreen" } },
+                  ],
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.completionButtonText}>Anasayfaya Dön 🏠</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView>
         {/* Header with Progress */}
         <View style={styles.progressSection}>
@@ -224,6 +346,13 @@ export default function ExperimentDetailScreen({
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionIcon}>🧪</Text>
               <Text style={styles.sectionTitle}>Adım {currentStep + 1}</Text>
+              {ttsEnabled && (
+                <SpeakButton
+                  text={`Adım ${currentStep + 1}. ${currentStepData.instruction}${currentStepData.tip ? `. İpucu: ${currentStepData.tip}` : ""}`}
+                  onSpeak={speakText}
+                  style={styles.speakButton}
+                />
+              )}
             </View>
             <Text style={styles.instructionText}>
               {currentStepData.instruction}
@@ -301,8 +430,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   progressSection: {
-    backgroundColor: "#E0F7F1",
+    backgroundColor: "#D4F1F4",
     padding: spacing[5],
+    borderBottomWidth: 3,
+    borderBottomColor: "#4ECDC4",
   },
   backLink: {
     marginBottom: spacing[4],
@@ -340,14 +471,11 @@ const styles = StyleSheet.create({
     padding: spacing[4],
   },
   sectionCard: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFD4E5",
     borderRadius: 24,
     padding: spacing[5],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: "#FF6B9D",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -359,9 +487,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   sectionTitle: {
+    flex: 1,
     fontSize: typography.sizes.lg,
     fontWeight: "700",
     color: colors.text.dark,
+    fontFamily: typography.fontFamily.bold,
+  },
+  speakButton: {
+    width: 40,
+    height: 40,
   },
   materialsGrid: {
     gap: spacing[3],
@@ -369,10 +503,12 @@ const styles = StyleSheet.create({
   materialItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.background,
+    backgroundColor: "#D4F1F4",
     padding: spacing[3],
     borderRadius: 16,
     gap: spacing[2],
+    borderWidth: 1,
+    borderColor: "#4ECDC4",
   },
   materialIcon: {
     fontSize: 20,
@@ -396,9 +532,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   tipBox: {
-    backgroundColor: "#FEF3C7",
+    backgroundColor: "#FFF9D0",
     padding: spacing[4],
     borderRadius: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#FFD93D",
   },
   tipTitle: {
     fontSize: typography.sizes.base,
@@ -418,22 +556,26 @@ const styles = StyleSheet.create({
   },
   prevButton: {
     flex: 1,
-    backgroundColor: colors.gray[200],
+    backgroundColor: "#D4F1F4",
     paddingVertical: spacing[4],
     borderRadius: 24,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#4ECDC4",
   },
   prevButtonText: {
     fontSize: typography.sizes.base,
     fontWeight: "700",
-    color: colors.text.dark,
+    color: "#4ECDC4",
   },
   nextButton: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: "#FF6B9D",
     paddingVertical: spacing[4],
     borderRadius: 24,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
   fullWidth: {
     flex: 1,
@@ -457,13 +599,13 @@ const styles = StyleSheet.create({
   surveyTitle: {
     fontSize: typography.sizes["2xl"],
     fontWeight: "700",
-    color: "#7C3AED",
+    color: "#FF6B9D",
     marginBottom: spacing[2],
     textAlign: "center",
   },
   surveySubtitle: {
     fontSize: typography.sizes.sm,
-    color: "#6D28D9",
+    color: "#FF6B9D",
     fontWeight: "600",
     textAlign: "center",
   },
@@ -472,9 +614,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing[6],
   },
   questionCard: {
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "#FFD4E5",
     borderRadius: 16,
     padding: spacing[4],
+    borderWidth: 2,
+    borderColor: "#FF6B9D",
   },
   questionHeader: {
     flexDirection: "row",
@@ -486,7 +630,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#C4B5FD",
+    backgroundColor: "#FF6B9D",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -499,12 +643,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.sizes.base,
     fontWeight: "700",
-    color: "#7C3AED",
+    color: "#FF6B9D",
   },
   answerInput: {
-    backgroundColor: colors.white,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
     borderWidth: 2,
-    borderColor: "#C4B5FD",
+    borderColor: "#FF6B9D",
     borderRadius: 12,
     padding: spacing[3],
     fontSize: typography.sizes.sm,
@@ -527,13 +671,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   completeButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: "#FF6B9D",
     paddingVertical: spacing[4],
     paddingHorizontal: spacing[8],
     borderRadius: 24,
     width: "100%",
     maxWidth: 300,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
   completeButtonText: {
     color: colors.white,
@@ -542,5 +688,90 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: spacing[8],
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  completionModal: {
+    backgroundColor: "#FFD4E5",
+    borderRadius: 32,
+    padding: spacing[8],
+    marginHorizontal: spacing[4],
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FF6B9D",
+  },
+  completionEmoji: {
+    fontSize: 80,
+    marginBottom: spacing[4],
+  },
+  completionTitle: {
+    fontSize: typography.sizes["2xl"],
+    fontWeight: "700",
+    color: "#FF6B9D",
+    marginBottom: spacing[2],
+    textAlign: "center",
+  },
+  completionSubtitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: "#FF6B9D",
+    marginBottom: spacing[3],
+    textAlign: "center",
+  },
+  completionMessage: {
+    fontSize: typography.sizes.base,
+    color: colors.text.dark,
+    textAlign: "center",
+    marginBottom: spacing[6],
+    lineHeight: 22,
+  },
+  completionStats: {
+    flexDirection: "row",
+    gap: spacing[4],
+    marginBottom: spacing[6],
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: "#FFF9D0",
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[3],
+    borderRadius: 20,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFD93D",
+  },
+  statEmoji: {
+    fontSize: 32,
+    marginBottom: spacing[2],
+  },
+  statValue: {
+    fontSize: typography.sizes.base,
+    fontWeight: "700",
+    color: colors.text.dark,
+    textAlign: "center",
+  },
+  completionTtsButton: {
+    marginBottom: spacing[4],
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "#FF6B9D",
+  },
+  completionButton: {
+    backgroundColor: "#FF6B9D",
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[8],
+    borderRadius: 24,
+    width: "100%",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
+  },
+  completionButtonText: {
+    color: colors.white,
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
   },
 });

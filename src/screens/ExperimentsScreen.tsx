@@ -13,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SpeakButton } from "../components/SpeakButton";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
 import { colors, spacing, typography } from "../utils/colors";
 
@@ -24,6 +26,7 @@ export default function ExperimentsScreen({
   navigation,
 }: ExperimentsScreenProps) {
   const { allExperiments, progress, loading } = useWeeklyExperiment();
+  const { ttsEnabled, speakText } = useTextToSpeech();
   const [ageGroup, setAgeGroup] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,31 +67,19 @@ export default function ExperimentsScreen({
         {/* Progress Hero Card */}
         <View style={styles.heroSection}>
           <View style={styles.heroCard}>
-            <Text style={styles.heroTitle}>Deneyler 🧪</Text>
+            <View style={styles.heroHeader}>
+              <Text style={styles.heroTitle}>Deneyler 🧪</Text>
+              {ttsEnabled && (
+                <SpeakButton
+                  text="Deneyler. Her hafta yeni bir deneyle keşfet, öğren ve yıldızları topla."
+                  onSpeak={speakText}
+                  size="small"
+                />
+              )}
+            </View>
             <Text style={styles.heroSubtitle}>
               Her hafta yeni bir deneyle keşfet, öğren ve yıldızları topla ✨
             </Text>
-
-            {/* Progress Card */}
-            <View style={styles.progressCard}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>İlerleme</Text>
-                <Text style={styles.progressCount}>
-                  {progress.totalExperimentsCompleted} / {allExperiments.length}
-                </Text>
-              </View>
-              <View style={styles.progressBarContainer}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${completionRate}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressFooter}>
-                Devam et! Yeni deneyler seni bekliyor 🚀
-              </Text>
-            </View>
           </View>
         </View>
 
@@ -109,36 +100,46 @@ export default function ExperimentsScreen({
                 >
                   {/* Header */}
                   <View style={styles.experimentHeader}>
-                    <View style={styles.weekBadge}>
-                      <Text style={styles.weekBadgeText}>
-                        Hafta {index + 1}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.difficultyBadge,
-                        exp.difficulty === "kolay" && styles.difficultyEasy,
-                        exp.difficulty === "orta" && styles.difficultyMedium,
-                        exp.difficulty === "zor" && styles.difficultyHard,
-                      ]}
-                    >
-                      <Text
+                    <View style={styles.headerLeft}>
+                      <View style={styles.weekBadge}>
+                        <Text style={styles.weekBadgeText}>
+                          Hafta {index + 1}
+                        </Text>
+                      </View>
+                      <View
                         style={[
-                          styles.difficultyText,
-                          exp.difficulty === "kolay" &&
-                            styles.difficultyTextEasy,
-                          exp.difficulty === "orta" &&
-                            styles.difficultyTextMedium,
-                          exp.difficulty === "zor" && styles.difficultyTextHard,
+                          styles.difficultyBadge,
+                          exp.difficulty === "kolay" && styles.difficultyEasy,
+                          exp.difficulty === "orta" && styles.difficultyMedium,
+                          exp.difficulty === "zor" && styles.difficultyHard,
                         ]}
                       >
-                        {exp.difficulty === "kolay"
-                          ? "Kolay"
-                          : exp.difficulty === "orta"
-                            ? "Orta"
-                            : "Zor"}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.difficultyText,
+                            exp.difficulty === "kolay" &&
+                              styles.difficultyTextEasy,
+                            exp.difficulty === "orta" &&
+                              styles.difficultyTextMedium,
+                            exp.difficulty === "zor" &&
+                              styles.difficultyTextHard,
+                          ]}
+                        >
+                          {exp.difficulty === "kolay"
+                            ? "Kolay"
+                            : exp.difficulty === "orta"
+                              ? "Orta"
+                              : "Zor"}
+                        </Text>
+                      </View>
                     </View>
+                    {ttsEnabled && !isLocked && (
+                      <SpeakButton
+                        text={`${exp.title}. ${exp.description}`}
+                        onSpeak={speakText}
+                        size="small"
+                      />
+                    )}
                   </View>
 
                   {/* Title & Description */}
@@ -180,6 +181,7 @@ export default function ExperimentsScreen({
                       style={[
                         styles.experimentButtonText,
                         isLocked && styles.experimentButtonTextLocked,
+                        isCompleted && styles.experimentButtonTextCompleted,
                       ]}
                     >
                       {isLocked
@@ -233,11 +235,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: spacing[5],
   },
+  heroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing[2],
+  },
   heroTitle: {
+    flex: 1,
     fontSize: typography.sizes["2xl"],
     fontWeight: "700",
     color: colors.text.dark,
-    marginBottom: spacing[2],
   },
   heroSubtitle: {
     fontSize: typography.sizes.base,
@@ -254,6 +262,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: spacing[2],
+  },
+  progressLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[2],
   },
   progressLabel: {
     fontSize: typography.sizes.sm,
@@ -285,15 +298,12 @@ const styles = StyleSheet.create({
     gap: spacing[4],
   },
   experimentCard: {
-    backgroundColor: colors.white,
+    backgroundColor: "#E0F7F4",
     borderRadius: 24,
     padding: spacing[5],
     marginBottom: spacing[4],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 2,
+    borderColor: "#4ECDC4",
   },
   experimentCardLocked: {
     opacity: 0.5,
@@ -303,6 +313,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: spacing[3],
+  },
+  headerLeft: {
+    flexDirection: "row",
+    gap: spacing[2],
+    alignItems: "center",
   },
   weekBadge: {
     backgroundColor: colors.primary,
@@ -374,16 +389,20 @@ const styles = StyleSheet.create({
     color: colors.text.light,
   },
   experimentButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: "#FF6B9D",
     paddingVertical: spacing[4],
     borderRadius: 24,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.5)",
   },
   experimentButtonLocked: {
-    backgroundColor: "#FECACA",
+    backgroundColor: "#F3F4F6",
+    borderColor: "#D1D5DB",
   },
   experimentButtonCompleted: {
-    backgroundColor: "#6EE7B7",
+    backgroundColor: "#FFD93D",
+    borderColor: "#FFD93D",
   },
   experimentButtonText: {
     color: colors.white,
@@ -391,13 +410,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   experimentButtonTextLocked: {
-    color: "#FCA5A5",
+    color: "#9CA3AF",
+  },
+  experimentButtonTextCompleted: {
+    color: "#8B6F47",
   },
   emptyState: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFF9D0",
     borderRadius: 24,
     padding: spacing[8],
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFD93D",
   },
   emptyEmoji: {
     fontSize: 56,

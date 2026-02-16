@@ -23,6 +23,7 @@ export const colors = {
     medium: "#475569",
     light: "#6B7280",
     lighter: "#9CA3AF",
+    pinky: "#FF6B9D",
   },
 
   // Semantic Colors

@@ -9,7 +9,6 @@ export default function ProgressTab() {
       navigation={{
         navigate: (screen: string, params?: any) => {
           // Add navigation logic if needed
-          console.log("Navigate to:", screen, params);
         },
       }}
     />

@@ -10,6 +10,12 @@ export default function ProfileSetupRoute() {
         replace: (route: string) => {
           router.replace(route);
         },
+        navigate: (route: string) => {
+          router.navigate(route);
+        },
+        push: (route: string) => {
+          router.push(route);
+        },
       }}
     />
   );

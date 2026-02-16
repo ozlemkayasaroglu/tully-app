@@ -6,6 +6,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SpeakButton } from "../components/SpeakButton";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
 import { categoryIcons } from "../types/experimentTypes";
 import { colors, spacing, typography } from "../utils/colors";
@@ -105,6 +107,7 @@ const achievements = [
 
 export default function ProgressScreen({ navigation }: ProgressScreenProps) {
   const { progress, allExperiments, loading } = useWeeklyExperiment();
+  const { ttsEnabled, speakText } = useTextToSpeech();
   const [ageGroup, setAgeGroup] = useState<string | null>(null);
 
   useEffect(() => {
@@ -155,60 +158,23 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
 
   const unlockedCount = achievementsWithStatus.filter((a) => a.unlocked).length;
 
-  const lastCompleted = [...allExperiments]
-    .reverse()
-    .find((exp) => exp.status === "completed");
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Progress Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.heroCard}>
-            <Text style={styles.heroTitle}>İlerleme 📊</Text>
+            <View style={styles.heroHeader}>
+              <Text style={styles.heroTitle}>İlerleme 📊</Text>
+              {ttsEnabled && (
+                <SpeakButton
+                  text={`İlerleme. ${ageCopy}`}
+                  onSpeak={speakText}
+                  size="small"
+                />
+              )}
+            </View>
             <Text style={styles.heroSubtitle}>{ageCopy}</Text>
-
-            {/* XP Card */}
-            <View style={styles.progressCard}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>XP</Text>
-                <Text style={styles.progressValue}>
-                  {progress.totalPoints} XP
-                </Text>
-              </View>
-              <View style={styles.progressBarContainer}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${currentLevelXP}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressFooter}>
-                Seviye {level + 1} için {100 - currentLevelXP} XP daha 🚀
-              </Text>
-            </View>
-
-            {/* Completion Card */}
-            <View style={styles.progressCard}>
-              <View style={styles.progressHeader}>
-                <Text style={styles.progressLabel}>Deney Tamamlama</Text>
-                <Text style={styles.progressValue}>
-                  {progress.totalExperimentsCompleted} / {allExperiments.length}
-                </Text>
-              </View>
-              <View style={styles.progressBarContainer}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${completionRate}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressFooter}>
-                Devam et! Yeni deneyler seni bekliyor 🚀
-              </Text>
-            </View>
           </View>
         </View>
 
@@ -243,9 +209,18 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
         {/* Achievements */}
         <View style={styles.section}>
           <View style={styles.achievementsCard}>
-            <Text style={styles.sectionTitle}>
-              🏆 Başarılar ({unlockedCount}/{achievements.length})
-            </Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>
+                🏆 Başarılar ({unlockedCount}/{achievements.length})
+              </Text>
+              {ttsEnabled && (
+                <SpeakButton
+                  text={`Başarılar. ${unlockedCount} tane ${achievements.length} başarıdan kazanıldı`}
+                  onSpeak={speakText}
+                  size="small"
+                />
+              )}
+            </View>
             <View style={styles.achievementsGrid}>
               {achievementsWithStatus.map((achievement) => (
                 <View
@@ -255,6 +230,14 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
                     achievement.unlocked && styles.achievementUnlocked,
                   ]}
                 >
+                  {ttsEnabled && (
+                    <SpeakButton
+                      text={`${achievement.name}. ${achievement.desc}${achievement.unlocked ? ". Kazanıldı" : ""}`}
+                      onSpeak={speakText}
+                      size="small"
+                      style={styles.achievementTtsButton}
+                    />
+                  )}
                   <View
                     style={[
                       styles.achievementIconContainer,
@@ -296,64 +279,39 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
         {/* Parent Summary */}
         <View style={styles.section}>
           <View style={styles.parentCard}>
-            <Text style={styles.parentTitle}>👨‍👩‍👧 Bugün Ne Öğrendi?</Text>
+            <Text style={styles.parentTitle}>Bugün Ne Öğrendi?</Text>
 
-            {/* Last Completed Experiment */}
-            {lastCompleted && (
-              <View style={styles.lastCompletedCard}>
-                <Text style={styles.categoryIcon}>
-                  {categoryIcons[
-                    lastCompleted.category as keyof typeof categoryIcons
-                  ] || "🔬"}
-                </Text>
-                <View style={styles.lastCompletedContent}>
-                  <Text style={styles.lastCompletedTitle}>
-                    Son Tamamlanan: {lastCompleted.title}
-                  </Text>
-                  <Text style={styles.lastCompletedDesc} numberOfLines={2}>
-                    {lastCompleted.description}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Recent Experiments */}
-            {allExperiments.length > 0 ? (
+            {/* Completed Experiments with Learning Summary */}
+            {allExperiments.filter((exp) => exp.status === "completed").length >
+            0 ? (
               <View style={styles.recentExperiments}>
-                {allExperiments.slice(-3).map((exp, idx) => (
-                  <View key={exp.id} style={styles.recentExperimentCard}>
-                    <View style={styles.recentExperimentContent}>
-                      <Text style={styles.recentExperimentTitle}>
-                        {idx + 1}. {exp.title}
-                      </Text>
-                      <Text
-                        style={styles.recentExperimentDesc}
-                        numberOfLines={2}
-                      >
-                        {exp.description}
-                      </Text>
+                {allExperiments
+                  .filter((exp) => exp.status === "completed")
+                  .reverse()
+                  .map((exp, idx) => (
+                    <View key={exp.id} style={styles.learningCard}>
+                      <View style={styles.learningHeader}>
+                        <Text style={styles.learningIcon}>
+                          {categoryIcons[
+                            exp.category as keyof typeof categoryIcons
+                          ] || "🔬"}
+                        </Text>
+                        <Text style={styles.learningTitle}>{exp.title}</Text>
+                      </View>
+                      {exp.learningSummary && (
+                        <Text style={styles.learningSummary}>
+                          {exp.learningSummary}
+                        </Text>
+                      )}
                       <View style={styles.recentExperimentMeta}>
                         <View
                           style={[
                             styles.statusBadge,
                             exp.status === "completed" &&
                               styles.statusCompleted,
-                            exp.status === "in_progress" &&
-                              styles.statusInProgress,
-                            exp.status === "available" &&
-                              styles.statusAvailable,
-                            exp.status === "locked" && styles.statusLocked,
                           ]}
                         >
-                          <Text style={styles.statusText}>
-                            {exp.status === "completed"
-                              ? "✅ Tamamlandı"
-                              : exp.status === "in_progress"
-                                ? "⏳ Devam Ediyor"
-                                : exp.status === "available"
-                                  ? "🕒 Başlamadı"
-                                  : "🔒 Kilitli"}
-                          </Text>
+                          <Text style={styles.statusText}>✅ Tamamlandı</Text>
                         </View>
                         {exp.points && (
                           <View style={styles.pointsBadge}>
@@ -364,19 +322,13 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
                         )}
                       </View>
                     </View>
-                    <Text style={styles.recentExperimentIcon}>
-                      {categoryIcons[
-                        exp.category as keyof typeof categoryIcons
-                      ] || "🔬"}
-                    </Text>
-                  </View>
-                ))}
+                  ))}
               </View>
             ) : (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyEmoji}>🔬</Text>
                 <Text style={styles.emptyText}>
-                  Henüz deney bulunmuyor. İlk deneye başla!
+                  Henüz tamamlanan deney bulunmuyor. İlk deneyi tamamla!
                 </Text>
               </View>
             )}
@@ -416,11 +368,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: spacing[5],
   },
+  heroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing[2],
+  },
   heroTitle: {
+    flex: 1,
     fontSize: typography.sizes["2xl"],
     fontWeight: "700",
     color: colors.text.dark,
-    marginBottom: spacing[2],
   },
   heroSubtitle: {
     fontSize: typography.sizes.base,
@@ -437,7 +395,13 @@ const styles = StyleSheet.create({
   progressHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: spacing[2],
+  },
+  progressHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[2],
   },
   progressLabel: {
     fontSize: typography.sizes.sm,
@@ -515,9 +479,15 @@ const styles = StyleSheet.create({
     padding: spacing[5],
   },
   sectionTitle: {
+    flex: 1,
     fontSize: typography.sizes.lg,
     fontWeight: "700",
     color: colors.text.dark,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing[4],
   },
   achievementsGrid: {
@@ -534,6 +504,11 @@ const styles = StyleSheet.create({
   },
   achievementUnlocked: {
     backgroundColor: "#FEF3C7",
+  },
+  achievementTtsButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
   },
   achievementIconContainer: {
     width: 56,
@@ -581,14 +556,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   parentCard: {
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "#FFF9D0",
     borderRadius: 24,
     padding: spacing[5],
+    borderWidth: 2,
+    borderColor: "#FFD93D",
   },
   parentTitle: {
     fontSize: typography.sizes.lg,
     fontWeight: "700",
-    color: colors.text.dark,
+    color: "#92400E",
     marginBottom: spacing[4],
   },
   lastCompletedCard: {
@@ -644,6 +621,39 @@ const styles = StyleSheet.create({
   recentExperimentMeta: {
     flexDirection: "row",
     gap: spacing[2],
+  },
+  learningCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: spacing[4],
+    marginBottom: spacing[3],
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  learningHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[2],
+    marginBottom: spacing[2],
+  },
+  learningIcon: {
+    fontSize: 20,
+  },
+  learningTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "600",
+    color: colors.text.dark,
+    flex: 1,
+  },
+  learningSummary: {
+    fontSize: typography.sizes.sm,
+    color: "#4B5563",
+    lineHeight: 20,
+    fontStyle: "italic",
+    backgroundColor: "#F3F4F6",
+    padding: spacing[3],
+    borderRadius: 12,
+    marginBottom: spacing[2],
   },
   statusBadge: {
     paddingHorizontal: spacing[2],

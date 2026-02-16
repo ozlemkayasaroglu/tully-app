@@ -4,6 +4,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -20,7 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, spacing } from "../utils/colors";
 
 interface ProfileSetupScreenProps {
-  navigation: any;
+  navigation?: any;
 }
 
 const AVATARS = [
@@ -57,6 +58,7 @@ const getDefaultNickname = (ageId: string) => {
 export default function ProfileSetupScreen({
   navigation,
 }: ProfileSetupScreenProps) {
+  const router = useRouter();
   const [nickname, setNickname] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState("unicorn");
   const [selectedAge, setSelectedAge] = useState("8-9");
@@ -112,11 +114,12 @@ export default function ProfileSetupScreen({
 
       await AsyncStorage.setItem("userProfile", JSON.stringify(profile));
 
-      // Navigate to tabs which will show HomeScreen
-      navigation.replace("/(tabs)");
+      // Navigate to home screen
+      setTimeout(() => {
+        router.replace("/");
+      }, 300);
     } catch (error) {
       Alert.alert("Hata", "Profil kaydedilirken hata oluştu!");
-      console.error("Error saving profile:", error);
     } finally {
       setLoading(false);
     }
@@ -396,13 +399,6 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     paddingVertical: spacing[4],
     alignItems: "center",
-    shadowColor: "#FF6B9D",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
     elevation: 8,
     borderWidth: 4,
     borderColor: colors.white,

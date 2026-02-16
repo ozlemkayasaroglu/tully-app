@@ -6,13 +6,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { SpeakButton } from "../components/SpeakButton";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useWeeklyExperiment } from "../hooks/useWeeklyExperiment";
 import { colors, spacing, typography } from "../utils/colors";
 
@@ -65,7 +67,9 @@ type Achievement = {
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [userProfile, setUserProfile] = useState<any>(null);
-  const { currentExperiment, progress, loading } = useWeeklyExperiment();
+  const { currentExperiment, allExperiments, progress, loading } =
+    useWeeklyExperiment();
+  const { ttsEnabled, speakText } = useTextToSpeech();
   const [scientistOfTheDay] = useState(
     scientists[Math.floor(Math.random() * scientists.length)],
   );
@@ -117,7 +121,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     {
       id: "a5",
       icon: "📚",
-      name: "Bilge",
+      name: "Azimli",
       desc: "10 deneyi tamamla",
       unlocked: progress.totalExperimentsCompleted >= 10,
     },
@@ -140,15 +144,23 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.heroCard}>
-            <Text style={styles.heroAvatar}>{avatarEmoji}</Text>
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>
-                Merhaba {userProfile?.nickname || "Bilim Kaşifi"} 👋
+                Merhaba {userProfile?.nickname || "Bilim Kaşifi"}
               </Text>
+              {ttsEnabled && (
+                <SpeakButton
+                  text={`Merhaba ${userProfile?.nickname || "Bilim Kaşifi"}. Bugün keşfetmeye hazır mısın?`}
+                  onSpeak={speakText}
+                  size="medium"
+                  style={styles.heroCardSpeakButton}
+                />
+              )}
               <Text style={styles.heroSubtitle}>
                 Bugün keşfetmeye hazır mısın?
               </Text>
             </View>
+            <Text style={styles.heroAvatar}>{avatarEmoji}</Text>
           </View>
         </View>
 
@@ -160,48 +172,150 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               <Text style={styles.loadingText}>Hazırlanıyor...</Text>
             </View>
           ) : currentExperiment ? (
-            <View style={styles.experimentCard}>
-              <View style={styles.experimentHeader}>
-                <View style={styles.weekBadge}>
-                  <Text style={styles.weekBadgeText}>
-                    Hafta {currentExperiment.weekNumber}
+            <>
+              <View style={styles.experimentCard}>
+                <Text style={styles.experimentTitle}>
+                  {currentExperiment.title}
+                </Text>
+                <View style={styles.experimentHeader}>
+                  <View style={styles.weekBadge}>
+                    <Text style={styles.weekBadgeText}>
+                      Hafta {currentExperiment.weekNumber}
+                    </Text>
+                  </View>
+                  <View style={styles.difficultyBadge}>
+                    <Text style={styles.difficultyBadgeText}>
+                      {currentExperiment.difficulty}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.experimentDescriptionRow}>
+                  <Text style={styles.experimentDescription}>
+                    {currentExperiment.description}
+                  </Text>
+                  {ttsEnabled && (
+                    <SpeakButton
+                      text={`${currentExperiment.title}. ${currentExperiment.description}`}
+                      onSpeak={speakText}
+                      size="small"
+                    />
+                  )}
+                </View>
+
+                <View style={styles.experimentMeta}>
+                  <Text style={styles.metaText}>
+                    ⏱️ {currentExperiment.estimatedTime}
+                    {ttsEnabled && (
+                      <SpeakButton
+                        text={`Başarılar. ${unlockedCount} tane ${achievements.length} başarıdan kazanıldı`}
+                        onSpeak={speakText}
+                        size="small"
+                      />
+                    )}
+                  </Text>
+                  <Text style={styles.metaText}>
+                    ⭐ +{currentExperiment.points} XP
                   </Text>
                 </View>
-                <View style={styles.difficultyBadge}>
-                  <Text style={styles.difficultyBadgeText}>
-                    {currentExperiment.difficulty}
+
+                <TouchableOpacity
+                  style={styles.startButton}
+                  onPress={() =>
+                    navigation.navigate("ExperimentDetail", {
+                      experimentId: currentExperiment.id,
+                    })
+                  }
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.startButtonContent}>
+                    <Text style={styles.startButtonText}>Deneye Başla 🚀</Text>
+                    {ttsEnabled && (
+                      <SpeakButton
+                        text={`Deneye başla. ${currentExperiment.title}. ${currentExperiment.description}`}
+                        onSpeak={speakText}
+                        size="small"
+                        style={styles.startButtonTts}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Next Experiments Preview */}
+              {!loading && allExperiments.length > 0 && (
+                <View style={styles.nextExperimentsSection}>
+                  <Text style={styles.nextExperimentsTitle}>
+                    Sırada Neler Var?
                   </Text>
+                  {allExperiments
+                    .filter((exp) => exp.status !== "completed")
+                    .slice(0, 3)
+                    .map((exp, index) => {
+                    const statusColor =
+                      exp.status === "available"
+                        ? "#FF6B9D"
+                        : exp.status === "in_progress"
+                          ? "#4ECDC4"
+                          : "#999";
+                    const statusText =
+                      exp.status === "available"
+                        ? "Başlayabilirsin"
+                        : exp.status === "in_progress"
+                          ? "Devam et"
+                          : exp.status === "completed"
+                            ? "Tamamlandı ✓"
+                            : "Kilitli 🔒";
+
+                    return (
+                      <TouchableOpacity
+                        key={exp.id}
+                        style={[
+                          styles.nextExperimentCard,
+                          exp.status === "locked" &&
+                            styles.nextExperimentCardLocked,
+                        ]}
+                        onPress={() => {
+                          if (exp.status !== "locked") {
+                            navigation.navigate("ExperimentDetail", {
+                              experimentId: exp.id,
+                            });
+                          }
+                        }}
+                        activeOpacity={exp.status === "locked" ? 1 : 0.7}
+                      >
+                        <View style={styles.nextExpIndex}>
+                          <Text style={styles.nextExpIndexText}>
+                            {index + 1}
+                          </Text>
+                        </View>
+                        <View style={styles.nextExpContent}>
+                          <Text style={styles.nextExpTitle}>{exp.title}</Text>
+                          <View style={styles.nextExpFooter}>
+                            <Text style={styles.nextExpDifficulty}>
+                              {exp.difficulty}
+                            </Text>
+                            <View
+                              style={[
+                                styles.nextExpStatus,
+                                { backgroundColor: statusColor },
+                              ]}
+                            >
+                              <Text style={styles.nextExpStatusText}>
+                                {statusText}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Text style={styles.nextExpPoints}>
+                          +{exp.points}⭐
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              </View>
-
-              <Text style={styles.experimentTitle}>
-                {currentExperiment.title}
-              </Text>
-              <Text style={styles.experimentDescription}>
-                {currentExperiment.description}
-              </Text>
-
-              <View style={styles.experimentMeta}>
-                <Text style={styles.metaText}>
-                  ⏱️ {currentExperiment.estimatedTime}
-                </Text>
-                <Text style={styles.metaText}>
-                  ⭐ +{currentExperiment.points} XP
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.startButton}
-                onPress={() =>
-                  navigation.navigate("ExperimentDetail", {
-                    experimentId: currentExperiment.id,
-                  })
-                }
-                activeOpacity={0.8}
-              >
-                <Text style={styles.startButtonText}>Deneye Başla 🚀</Text>
-              </TouchableOpacity>
-            </View>
+              )}
+            </>
           ) : (
             <View style={styles.completedCard}>
               <Text style={styles.completedEmoji}>🎉</Text>
@@ -215,9 +329,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         {/* Achievements */}
         <View style={styles.section}>
           <View style={styles.achievementsCard}>
-            <Text style={styles.achievementsTitle}>
-              🏆 Başarılar ({unlockedCount}/{achievements.length})
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.achievementsTitle}>
+                🏆 Başarılar ({unlockedCount}/{achievements.length})
+              </Text>
+              {ttsEnabled && (
+                <SpeakButton
+                  text={`Başarılar. ${unlockedCount} tane ${achievements.length} başarıdan kazanıldı`}
+                  onSpeak={speakText}
+                  size="small"
+                />
+              )}
+            </View>
             <View style={styles.achievementsGrid}>
               {achievements.map((achievement) => (
                 <View
@@ -227,6 +350,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                     achievement.unlocked && styles.achievementUnlocked,
                   ]}
                 >
+                  {ttsEnabled && (
+                    <SpeakButton
+                      text={`${achievement.name}. ${achievement.desc}`}
+                      onSpeak={speakText}
+                      size="small"
+                      style={styles.achievementTtsButton}
+                    />
+                  )}
                   <View
                     style={[
                       styles.achievementIconContainer,
@@ -272,15 +403,24 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
         {/* Scientist of the Day */}
         <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>👨‍🔬 Bilim İnsanı Olarak Tanı</Text>
+            {ttsEnabled && (
+              <SpeakButton
+                text={`Bilim İnsanı Olarak Tanı. ${scientistOfTheDay.name}. ${scientistOfTheDay.quote}. ${scientistOfTheDay.info}`}
+                onSpeak={speakText}
+                size="small"
+              />
+            )}
+          </View>
           <View style={styles.scientistCard}>
-            <Text style={styles.scientistTitle}>
-              Diğer Meraklı Çocuklar Büyüdü ve Neler Yaptı?
-            </Text>
             <Text style={styles.scientistName}>{scientistOfTheDay.name}</Text>
             <View style={styles.scientistQuoteBox}>
               <Text style={styles.scientistQuote}>
                 "{scientistOfTheDay.quote}"
               </Text>
+            </View>
+            <View style={styles.scientistInfoBox}>
               <Text style={styles.scientistInfo}>{scientistOfTheDay.info}</Text>
             </View>
           </View>
@@ -308,6 +448,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing[4],
+    position: "relative",
+  },
+  heroCardSpeakButton: {
+    position: "absolute",
+    top: 30,
+    right: 55,
   },
   heroAvatar: {
     fontSize: 64,
@@ -316,6 +462,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroTitle: {
+    flex: 1,
     fontSize: typography.sizes["2xl"],
     fontWeight: "700",
     fontFamily: typography.fontFamily.bold,
@@ -323,6 +470,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[1],
   },
   heroSubtitle: {
+    flex: 1,
     fontSize: typography.sizes.base,
     fontFamily: typography.fontFamily.regular,
     color: colors.text.medium,
@@ -346,22 +494,18 @@ const styles = StyleSheet.create({
     color: colors.text.light,
   },
   experimentCard: {
-    backgroundColor: colors.white,
+    backgroundColor: "#E0F7F4",
     borderRadius: 24,
     padding: spacing[5],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    borderWidth: 2,
+    borderColor: "#4ECDC4",
   },
   experimentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: spacing[3],
   },
   weekBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary.blue,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
     borderRadius: 12,
@@ -372,27 +516,41 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   difficultyBadge: {
-    backgroundColor: "#D1FAE5",
+    backgroundColor: "#FFD93D",
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
     borderRadius: 12,
   },
   difficultyBadgeText: {
-    color: "#059669",
+    color: "#8B6F47",
     fontSize: typography.sizes.xs,
     fontWeight: "700",
   },
+  experimentTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing[2],
+  },
   experimentTitle: {
-    fontSize: typography.sizes.xl,
+    flex: 1,
+    fontSize: typography.sizes["2xl"],
     fontWeight: "700",
     color: colors.text.dark,
+    fontFamily: typography.fontFamily.bold,
     marginBottom: spacing[2],
   },
+  experimentDescriptionRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing[2],
+    marginBottom: spacing[4],
+  },
   experimentDescription: {
+    flex: 1,
     fontSize: typography.sizes.sm,
     color: colors.text.medium,
     lineHeight: 20,
-    marginBottom: spacing[4],
   },
   experimentMeta: {
     flexDirection: "row",
@@ -407,12 +565,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 24,
     paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
     alignItems: "center",
+  },
+  startButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing[2],
   },
   startButtonText: {
     color: colors.white,
     fontSize: typography.sizes.lg,
     fontWeight: "700",
+  },
+  startButtonTts: {
+    marginLeft: spacing[2],
+    backgroundColor: "rgba(194, 200, 200, 0.56)",
+    borderColor: colors.primary,
   },
   completedCard: {
     backgroundColor: colors.white,
@@ -429,11 +599,26 @@ const styles = StyleSheet.create({
     color: colors.text.light,
   },
   achievementsCard: {
-    backgroundColor: colors.white,
+    backgroundColor: "#FFF9D0",
     borderRadius: 24,
     padding: spacing[5],
+    borderWidth: 2,
+    borderColor: "#FFD93D",
+  },
+  achievementsTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing[4],
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing[3],
   },
   achievementsTitle: {
+    flex: 1,
     fontSize: typography.sizes.lg,
     fontWeight: "700",
     color: colors.text.dark,
@@ -450,9 +635,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: spacing[3],
     alignItems: "center",
+    position: "relative",
   },
   achievementUnlocked: {
     backgroundColor: "#FEF3C7",
+  },
+  achievementTtsButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
   },
   achievementIconContainer: {
     width: 56,
@@ -503,42 +694,140 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   scientistCard: {
-    backgroundColor: "#F3E8FF",
-    borderRadius: 24,
+    backgroundColor: "#FFD4E5",
+    borderRadius: 20,
     padding: spacing[5],
+    borderWidth: 2,
+    borderColor: "#FF6B9D",
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing[4],
   },
-  scientistTitle: {
-    fontSize: typography.sizes.base,
-    fontWeight: "700",
-    color: colors.text.dark,
-    textAlign: "center",
-    marginBottom: spacing[2],
-  },
-  scientistName: {
+  sectionTitle: {
+    flex: 1,
     fontSize: typography.sizes.lg,
     fontWeight: "700",
-    color: "#7C3AED",
+    color: colors.text.dark,
+  },
+  scientistName: {
+    fontSize: typography.sizes.xl,
+    fontWeight: "700",
+    color: colors.text.pinky,
     marginBottom: spacing[3],
+    textAlign: "center",
   },
   scientistQuoteBox: {
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
     borderRadius: 16,
-    padding: spacing[3],
-    borderTopWidth: 1,
-    borderTopColor: "#D8B4FE",
+    padding: spacing[4],
+    marginBottom: spacing[3],
   },
   scientistQuote: {
     fontSize: typography.sizes.sm,
     color: colors.text.medium,
     fontStyle: "italic",
     textAlign: "center",
-    marginBottom: spacing[2],
+    lineHeight: 22,
+  },
+  scientistInfoBox: {
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 12,
+    padding: spacing[3],
   },
   scientistInfo: {
     fontSize: typography.sizes.xs,
-    color: colors.text.light,
+    color: colors.text.dark,
     textAlign: "center",
+    lineHeight: 18,
+  },
+  nextExperimentsSection: {
+    paddingTop: spacing[4],
+  },
+  debugSection: {
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    backgroundColor: "#FFE0E0",
+    borderRadius: 12,
+    marginBottom: spacing[2],
+  },
+  debugText: {
+    fontSize: typography.sizes.xs,
+    color: "#CC0000",
+    fontWeight: "600",
+  },
+  nextExperimentsTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+    color: colors.text.dark,
+    marginBottom: spacing[3],
+  },
+  nextExperimentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E0F7F4",
+    borderRadius: 16,
+    padding: spacing[3],
+    marginBottom: spacing[2],
+    borderWidth: 2,
+    borderColor: "#4ECDC4",
+    gap: spacing[3],
+  },
+  nextExperimentCardLocked: {
+    backgroundColor: "#F3F4F6",
+    borderColor: "#D1D5DB",
+    opacity: 0.6,
+  },
+  nextExpIndex: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FF6B9D",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  nextExpIndexText: {
+    color: colors.white,
+    fontSize: typography.sizes.lg,
+    fontWeight: "700",
+  },
+  nextExpContent: {
+    flex: 1,
+  },
+  nextExpTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "700",
+    color: colors.text.dark,
+    marginBottom: spacing[1],
+  },
+  nextExpFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing[2],
+  },
+  nextExpDifficulty: {
+    fontSize: typography.sizes.xs,
+    color: colors.text.medium,
+    textTransform: "capitalize",
+  },
+  nextExpStatus: {
+    paddingHorizontal: spacing[2],
+    paddingVertical: spacing[1],
+    borderRadius: 8,
+  },
+  nextExpStatusText: {
+    fontSize: typography.sizes.xs,
+    fontWeight: "600",
+    color: colors.white,
+  },
+  nextExpPoints: {
+    fontSize: typography.sizes.sm,
+    fontWeight: "700",
+    color: colors.text.dark,
+    minWidth: 50,
+    textAlign: "right",
   },
   spacer: {
     height: spacing[8],

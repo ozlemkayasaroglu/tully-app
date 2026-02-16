@@ -16,6 +16,9 @@ export default function HomeTab() {
             router.push("/(tabs)/progress");
           }
         },
+        replace: (route: string) => {
+          router.replace(route);
+        },
       }}
     />
   );

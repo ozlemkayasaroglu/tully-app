@@ -101,6 +101,8 @@ export const weeklyExperiments: Omit<
       "Hücre duvarı ince çizgi olarak görünecek.",
     ],
     expectedResultsKey: "week-1-onion.expectedResults",
+    learningSummary:
+      "Bitki hücrelerini mikroskopla inceledi. Hücre duvarı, çekirdek ve sitoplazmayı gördü. Artık mikroskop kullanabiliyor!",
   },
 
   {
@@ -395,6 +397,8 @@ export const weeklyExperiments: Omit<
       "Hücreler soğan hücresinden daha küçük.",
     ],
     expectedResultsKey: "week-3-cheek-cells.expectedResults",
+    learningSummary:
+      "Kendi yanak hücrelerini inceledi. Hayvan hücrelerinin bitki hücrelerinden farklı olduğunu gördü. Kendi vücudunu tanıdı!",
   },
 
   {
@@ -478,6 +482,8 @@ export const weeklyExperiments: Omit<
       'Bu harekete "sitoplazmik akış" denir.',
     ],
     expectedResultsKey: "week-4-elodea.expectedResults",
+    learningSummary:
+      "Elodea bitkisinde canlı hücreleri gözlemledi. Kloroplastların hareketini izledi ve bitkilerin nasıl besin ürettiğini anladı!",
   },
 
   // HAFTA 5-8: Orta Seviye Deneyler
@@ -559,6 +565,8 @@ export const weeklyExperiments: Omit<
       "Algler: Yeşil, genellikle hareketsiz.",
     ],
     expectedResultsKey: "week-5-pond-water.expectedResults",
+    learningSummary:
+      "Havuz suyunda mikroorganizmaları gözlemledi. Paramesyum ve amip gibi canlıları gördü. Bir damla suda gizlenen yaşamı keşfetti!",
   },
 
   {
@@ -639,6 +647,8 @@ export const weeklyExperiments: Omit<
       "Metilen mavisi ile ölü hücreler mavi görünür.",
     ],
     expectedResultsKey: "week-6-yeast.expectedResults",
+    learningSummary:
+      "Maya mantarlarını mikroskopla inceledi. Tek hücreli canlıların nasıl büyüdüğünü gördü. Ekmeklerin kabarmasının nedenini anladı!",
   },
 
   {
